@@ -32,7 +32,7 @@ Incoming requests are matched with the prefix and sent to the registered worker.
 ```
 > **TODO** Define how multipart form/data should be received.
 
-To reply you can `posetMessage()` a reply containing the request ID(`rid`) so the host can reply to the waiting client.
+To reply you can `postMessage()` a reply containing the request ID(`rid`) so the host can reply to the waiting client.
 
 #### Response example
 ```json
