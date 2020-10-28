@@ -1,0 +1,10 @@
+[package]
+name = "valor-native"
+version = "0.1.0"
+authors = ["Daniel Olano <daniel@olanod.com>"]
+edition = "2018"
+
+[dependencies]
+valor = { path = ".." }
+hyper = "0.13.8"
+tokio = { version = "0.2", features = ["full"] }
