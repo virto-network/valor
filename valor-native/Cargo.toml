@@ -6,5 +6,5 @@ edition = "2018"
 
 [dependencies]
 valor = { path = ".." }
-hyper = "0.13.8"
-tokio = { version = "0.2", features = ["full"] }
+tide = { version = "0.14.0", default-features = false, features = ["h1-server"] }
+async-std = { version = "1.6.5", features = ["attributes"] }
