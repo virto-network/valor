@@ -1,5 +1,5 @@
 [package]
-name = "valor"
+name = "valor-rs"
 description = "Plugin runtime as HTTP API running in server and browser"
 license = "GPL-3.0-or-later"
 version = "0.2.0-alpha"
