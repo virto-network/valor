@@ -1,8 +1,11 @@
 [package]
 name = "valor"
-version = "0.1.0"
+description = "Plugin runtime as HTTP API running in server and browser"
+license = "GPL-3.0-or-later"
+version = "0.2.0-alpha"
 authors = ["Daniel Olano <daniel@olanod.com>"]
 edition = "2018"
+repository = "https://github.com/valibre-org/valor"
 
 [dependencies]
 fast-async-mutex = "0.6.3"
@@ -11,6 +14,7 @@ log = "0.4.11"
 path-tree = "0.1.12"
 
 [workspace]
+default-members = ["valor-native"]
 members = [
 	"valor-native",
 	"valor-web",
