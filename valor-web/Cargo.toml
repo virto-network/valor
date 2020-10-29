@@ -9,6 +9,7 @@ crate-type = ["cdylib", "rlib"]
 
 [dependencies]
 async-std = { version = "1.6.5", default-features = false, features = ["std"] }
+path-tree = "0.1.12"
 valor = { path = ".." }
 wasm-bindgen = "0.2.68"
 wasm-bindgen-futures = "0.4.18"

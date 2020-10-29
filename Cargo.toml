@@ -5,9 +5,9 @@ authors = ["Daniel Olano <daniel@olanod.com>"]
 edition = "2018"
 
 [dependencies]
-#anyhow = "1.0.33"
-async-std = { version = "1.6.5", default-features = false, features = ["std"] }
+fast-async-mutex = "0.6.3"
 http-types = { version = "2.6.0", default-features = false }
+path-tree = "0.1.12"
 
 [workspace]
 members = [

@@ -1,4 +1,4 @@
-use async_std::io;
+use valor::{Handler, Request, Url};
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
@@ -10,7 +10,8 @@ extern "C" {
 #[wasm_bindgen(start)]
 pub async fn run() {
     log("Hola!");
-    valor::handle_request(io::empty())
+    let h = Handler::new();
+    h.handle_request(Request::get(Url::parse("/").unwrap()))
         .await
         .map_err(|e| log(&e.to_string()))
         .unwrap();

@@ -8,3 +8,4 @@ edition = "2018"
 valor = { path = ".." }
 tide = { version = "0.14.0", default-features = false, features = ["h1-server"] }
 async-std = { version = "1.6.5", features = ["attributes"] }
+async-trait = "0.1.41"
