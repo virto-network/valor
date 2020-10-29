@@ -1,7 +1,7 @@
-struct Handler(valor::Handler);
-
 #[async_std::main]
 pub async fn main() -> tide::Result<()> {
+    femme::start();
+
     let handler = Handler(valor::Handler::new());
     let mut app = tide::new();
     app.at("/*").all(handler);
@@ -9,6 +9,8 @@ pub async fn main() -> tide::Result<()> {
     app.listen(("localhost", 8080)).await?;
     Ok(())
 }
+
+struct Handler(valor::Handler);
 
 #[async_trait::async_trait]
 impl tide::Endpoint<()> for Handler {
