@@ -1,0 +1,20 @@
+<script>navigator.serviceWorker.register('sw.js');
+const bcReq = new BroadcastChannel('requests-channel');
+const bcRes = new BroadcastChannel('responses-channel');
+bcReq.onmessage = async ({data}) => {
+  let headers = new Headers(data.headers)
+  let rid = headers.get('x-request-id')
+  let id = await hash(rid)
+  bcRes.postMessage({headers: {'x-correlation-id': id}})
+};
+
+const bufferToB64 = (b) => btoa(String.fromCharCode(...new Uint8Array(b)));
+
+async function hash(message) {
+  message = new TextEncoder().encode(message);
+  let digest = await crypto.subtle.digest("SHA-256", message);
+  return bufferToB64(digest);
+}
+</script>
+<script src="./lib/valor.js" async></script>
+
