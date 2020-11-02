@@ -23,6 +23,14 @@ async function handleRequest(request) {
     : broadcastAndWaitResponse(req);
 }
 
+const TIMEOUT = 3000;
+const timeout = (ms) => new Promise((res) => setTimeout(res, ms));
+const timeoutResponse = (id) =>
+  timeout(TIMEOUT).then(() => {
+    pendingRequests.delete(id);
+    return new Response("Timeout!", { status: 504 });
+  });
+
 async function broadcastAndWaitResponse(req) {
   const rid = uuidv4();
   req.headers.push(["x-request-id", rid]);
@@ -33,14 +41,13 @@ async function broadcastAndWaitResponse(req) {
   const response = new Promise((r) => {
     resolve = r;
   });
-  const id = await hash(rid);
-  pendingRequests.set(id, resolve);
+  pendingRequests.set(rid, resolve);
 
-  return Promise.race([timeoutResponse(id), response]);
+  return Promise.race([timeoutResponse(rid), response]);
 }
 
-const reqChan = new BroadcastChannel("requests-channel");
-const resChan = new BroadcastChannel("responses-channel");
+const reqChan = new BroadcastChannel("req_channel");
+const resChan = new BroadcastChannel("res_channel");
 const pendingRequests = new Map();
 
 resChan.onmessage = ({ data = {} }) => {
@@ -59,14 +66,6 @@ resChan.onmessage = ({ data = {} }) => {
   resolve(new Response(body, { status, headers }));
 };
 
-const TIMEOUT = 3000;
-const timeout = (ms) => new Promise((res) => setTimeout(res, ms));
-const timeoutResponse = (id) =>
-  timeout(TIMEOUT).then(() => {
-    pendingRequests.delete(id);
-    return new Response("Timeout!", { status: 504 });
-  });
-
 function uuidv4() {
   return ([1e7] + -1e3 + -4e3 + -8e3 + -1e11).replace(
     /[018]/g,
@@ -75,12 +74,4 @@ function uuidv4() {
         16,
       ),
   );
-}
-
-const bufferToB64 = (b) => btoa(String.fromCharCode(...new Uint8Array(b)));
-
-async function hash(message) {
-  message = new TextEncoder().encode(message);
-  let digest = await crypto.subtle.digest("SHA-256", message);
-  return bufferToB64(digest);
 }
