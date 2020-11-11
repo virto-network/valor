@@ -10,15 +10,11 @@ pub async fn main() -> tide::Result<()> {
     Ok(())
 }
 
-struct Handler(std::sync::Arc<valor::Handler>);
+struct Handler(valor::Handler);
 
 #[async_trait::async_trait]
 impl tide::Endpoint<()> for Handler {
     async fn call(&self, req: tide::Request<()>) -> tide::Result {
-        self.0
-            .clone()
-            .handle_request(req)
-            .await
-            .map(tide::Response::from)
+        h.handle_request(req).await.map(tide::Response::from)
     }
 }

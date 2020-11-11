@@ -66,7 +66,7 @@ pub async fn run() -> Result<(), JsValue> {
                 Err(err) => log::warn!("{}", err),
             }
         });
-    }) as Box<dyn FnMut(MessageEvent)>);
+    }) as Box<dyn Fn(MessageEvent)>);
     req_channel.set_onmessage(Some(on_msg.as_ref().unchecked_ref()));
     on_msg.forget();
 
