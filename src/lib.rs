@@ -1,6 +1,6 @@
 use fast_async_mutex::mutex::Mutex;
 pub use http_types::{Error, Method, Request, Response, Result, StatusCode, Url};
-use log::{debug, info};
+use kv_log_macro::{debug, info};
 use path_tree::PathTree;
 use serde::{Deserialize, Serialize};
 use serde_json::to_string;
@@ -41,12 +41,12 @@ impl Handler {
             .to_owned();
         let path = request.url().path().to_owned();
         let method = request.method();
-        debug!("received request {} {} id={}", method, path, req_id);
+        debug!("received request {} {}", method, path, { id: req_id.as_str() });
 
         let (plugin, handler) = {
             let registry = self.0.lock().await;
             registry
-                .get_plugin_handler(&path)
+                .match_plugin_handler(&path)
                 .ok_or(Error::from_str(StatusCode::NotFound, "no plugin matched"))?
         };
 
@@ -54,15 +54,10 @@ impl Handler {
         debug!("matched plugin \"{}\"", plugin);
 
         let mut response = handler.handle_request(request).await;
-        info!(
-            "[{}] {} {} {} id={id} ns={duration}",
-            plugin,
-            response.status(),
-            method,
-            path,
-            id = req_id,
-            duration = instant.elapsed().as_nanos(),
-        );
+        let status: u16 = response.status().into();
+        info!("[{}] {} {} {}", plugin, status, method, path, {
+            req_id: req_id.as_str(), status: status, dur: instant.elapsed().as_nanos() as u64
+        });
         response.insert_header("x-correlation-id", req_id);
         Ok(response)
     }
@@ -171,7 +166,7 @@ impl PluginRegistry {
         self.plugins.insert(plugin.name().into(), (plugin, handler));
     }
 
-    fn get_plugin_handler(&self, path: &str) -> Option<(Plugin, Arc<dyn RequestHandler>)> {
+    fn match_plugin_handler(&self, path: &str) -> Option<(Plugin, Arc<dyn RequestHandler>)> {
         let (name, _) = self.routes.find(path)?;
         let (plugin, handler) = self.plugins.get(name)?;
         Some((plugin.clone(), handler.clone()))

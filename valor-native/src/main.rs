@@ -1,3 +1,5 @@
+use uuid::Uuid;
+
 #[async_std::main]
 pub async fn main() -> tide::Result<()> {
     femme::with_level(femme::LevelFilter::Debug);
@@ -16,7 +18,7 @@ struct Handler(valor::Handler);
 impl tide::Endpoint<()> for Handler {
     async fn call(&self, mut req: tide::Request<()>) -> tide::Result {
         if req.header("x-request-id").is_none() {
-            req.insert_header("x-request-id", "1234");
+            req.insert_header("x-request-id", Uuid::new_v4().to_string());
         }
 
         self.0.handle_request(req).await.map(tide::Response::from)
