@@ -1,5 +1,6 @@
 use fast_async_mutex::mutex::Mutex;
 pub use http_types::{Error, Method, Request, Response, Result, StatusCode, Url};
+use instant::Instant;
 use kv_log_macro::{debug, info};
 use path_tree::PathTree;
 use serde::{Deserialize, Serialize};
@@ -29,7 +30,7 @@ impl Handler {
     /// Handle the incoming request and send back a response
     /// from the matched plugin to the caller.
     pub async fn handle_request(&self, request: impl Into<Request>) -> Result<Response> {
-        let instant = std::time::Instant::now();
+        let instant = Instant::now();
         let request = request.into();
         let req_id = request
             .header("x-request-id")
