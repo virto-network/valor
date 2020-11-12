@@ -43,7 +43,7 @@ pub async fn run() -> Result<(), JsValue> {
     init_log();
     load_service_worker("sw.js")?;
 
-    let handler = Handler::new();
+    let handler = Handler::new().await;
 
     let req_channel = BroadcastChannel::new("req_channel")?;
     let res_channel = Rc::new(BroadcastChannel::new("res_channel")?);

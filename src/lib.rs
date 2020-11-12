@@ -1,4 +1,4 @@
-//use fast_async_mutex::mutex::Mutex;
+use fast_async_mutex::mutex::Mutex;
 pub use http_types::{Error, Method, Request, Response, Result, StatusCode, Url};
 use log::{debug, info};
 use path_tree::PathTree;
@@ -7,7 +7,7 @@ use serde_json::to_string;
 use std::collections::HashMap;
 use std::future::Future;
 use std::iter::Iterator;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 
 /// Handler is the main entry point for dispatching incoming requests
 /// to registered plugins under a specific URL pattern.
@@ -22,13 +22,14 @@ use std::sync::{Arc, Mutex};
 pub struct Handler(Arc<Mutex<PluginRegistry>>);
 
 impl Handler {
-    pub fn new() -> Self {
-        Handler(PluginRegistry::new())
+    pub async fn new() -> Self {
+        Handler(PluginRegistry::new().await)
     }
 
     /// Handle the incoming request and send back a response
     /// from the matched plugin to the caller.
     pub async fn handle_request(&self, request: impl Into<Request>) -> Result<Response> {
+        let instant = std::time::Instant::now();
         let request = request.into();
         let req_id = request
             .header("x-request-id")
@@ -39,26 +40,31 @@ impl Handler {
             .as_str()
             .to_owned();
         let path = request.url().path().to_owned();
-        let reg = self.0.lock().expect("accuire lock");
-        match reg.get(&path) {
-            Some((plugin, handler)) => {
-                let method = request.method();
-                let mut response = handler.handle_request(request).await;
-                response.insert_header("x-correlation-id", req_id);
-                info!(
-                    "[{}]:{} {}:{}",
-                    plugin.name(),
-                    method,
-                    path,
-                    response.status()
-                );
-                Ok(response)
-            }
-            None => {
-                debug!("No plugin matched for {} {}", request.method(), path);
-                Err(Error::from_str(StatusCode::NotFound, "no plugin matched").into())
-            }
-        }
+        let method = request.method();
+        debug!("received request {} {} id={}", method, path, req_id);
+
+        let (plugin, handler) = {
+            let registry = self.0.lock().await;
+            registry
+                .get_plugin_handler(&path)
+                .ok_or(Error::from_str(StatusCode::NotFound, "no plugin matched"))?
+        };
+
+        let plugin = plugin.name();
+        debug!("matched plugin \"{}\"", plugin);
+
+        let mut response = handler.handle_request(request).await;
+        info!(
+            "[{}] {} {} {} id={id} ns={duration}",
+            plugin,
+            response.status(),
+            method,
+            path,
+            id = req_id,
+            duration = instant.elapsed().as_nanos(),
+        );
+        response.insert_header("x-correlation-id", req_id);
+        Ok(response)
     }
 }
 
@@ -84,10 +90,10 @@ where
     }
 }
 
-#[derive(Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "type")]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "type", rename_all = "snake_case")]
 enum Plugin {
-    BuiltIn(String),
+    BuiltIn { name: String },
     WebWorker { name: String, url: Url },
     Dummy,
 }
@@ -96,7 +102,7 @@ impl Plugin {
     fn name(&self) -> String {
         match self {
             Self::Dummy => "dummy",
-            Self::BuiltIn(name) => name,
+            Self::BuiltIn { name } => name,
             Self::WebWorker { name, .. } => name,
         }
         .into()
@@ -104,22 +110,23 @@ impl Plugin {
 
     fn prefix(&self) -> String {
         match self {
-            Self::BuiltIn(name) => format!("/_{}", name),
-            _ => "".into(),
+            Self::BuiltIn { name } => ["_", name].join(""),
+            Self::Dummy => "__dummy__".into(),
+            Self::WebWorker { name, .. } => name.into(),
         }
     }
 }
 
 /// Plugin to keep track of registered plugins
 struct PluginRegistry {
-    plugins: HashMap<String, (Plugin, Box<dyn RequestHandler>)>,
+    plugins: HashMap<String, (Plugin, Arc<dyn RequestHandler>)>,
     routes: PathTree<String>,
 }
 
 impl PluginRegistry {
     const NAME: &'static str = "plugins";
 
-    fn new() -> Arc<Mutex<Self>> {
+    async fn new() -> Arc<Mutex<Self>> {
         let registry = Arc::new(Mutex::new(PluginRegistry {
             plugins: HashMap::new(),
             routes: PathTree::new(),
@@ -127,21 +134,24 @@ impl PluginRegistry {
 
         // plugin registry registers itself as a plugin
         let reg_clone = registry.clone();
-        registry.clone().lock().unwrap().register(
-            Plugin::BuiltIn(Self::NAME.into()),
-            Box::new(move |mut req: Request| {
+        registry.clone().lock().await.register(
+            Plugin::BuiltIn {
+                name: Self::NAME.into(),
+            },
+            Arc::new(move |mut req: Request| {
                 let registry = reg_clone.clone();
                 async move {
                     match req.method() {
                         Method::Get => {
-                            let registry = registry.lock().unwrap();
-                            let plugins = registry.plugin_list().collect::<Vec<_>>();
+                            let plugins = registry.lock().await.plugin_list().collect::<Vec<_>>();
                             to_string(&plugins)
-                                .map_or(Response::new(StatusCode::BadRequest), |list| list.into())
+                                .map_or(Response::new(StatusCode::InternalServerError), |list| {
+                                    list.into()
+                                })
                         }
                         Method::Post => match req.body_json().await {
                             Ok(plugin) => {
-                                let mut registry = registry.lock().unwrap();
+                                let mut registry = registry.lock().await;
                                 let handler = registry.get_handler(&plugin);
                                 registry.register(plugin, handler);
                                 StatusCode::Created.into()
@@ -156,32 +166,30 @@ impl PluginRegistry {
         registry
     }
 
-    fn register(&mut self, plugin: Plugin, handler: Box<dyn RequestHandler>) {
+    fn register(&mut self, plugin: Plugin, handler: Arc<dyn RequestHandler>) {
         self.routes.insert(&plugin.prefix(), plugin.name());
         self.plugins.insert(plugin.name().into(), (plugin, handler));
     }
 
-    fn get(&self, path: &str) -> Option<(&Plugin, &dyn RequestHandler)> {
-        use std::borrow::Borrow;
-
+    fn get_plugin_handler(&self, path: &str) -> Option<(Plugin, Arc<dyn RequestHandler>)> {
         let (name, _) = self.routes.find(path)?;
         let (plugin, handler) = self.plugins.get(name)?;
-        Some((plugin, handler.borrow()))
+        Some((plugin.clone(), handler.clone()))
     }
 
     fn plugin_list(&self) -> impl Iterator<Item = Plugin> + '_ {
         self.plugins.values().map(|(p, _)| p.clone())
     }
 
-    fn get_handler(&self, plugin: &Plugin) -> Box<dyn RequestHandler> {
+    fn get_handler(&self, plugin: &Plugin) -> Arc<dyn RequestHandler> {
         match plugin {
-            Plugin::BuiltIn(name) => match name.as_str() {
+            Plugin::BuiltIn { name } => match name.as_str() {
                 "plugins" => unreachable!(),
                 _ => todo!(),
             },
             Plugin::WebWorker { .. } => todo!(),
             Plugin::Dummy => {
-                Box::new(|_req: Request| async { "hello dummy".into() }) as Box<dyn RequestHandler>
+                Arc::new(|_req: Request| async { "hello dummy".into() }) as Arc<dyn RequestHandler>
             }
         }
     }
