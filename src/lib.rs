@@ -1,7 +1,5 @@
 use fast_async_mutex::mutex::Mutex;
 pub use http_types::{Error, Method, Request, Response, Result, StatusCode, Url};
-use instant::Instant;
-use kv_log_macro::{debug, info};
 use registry::PluginRegistry;
 use serde::{Deserialize, Serialize};
 use std::future::Future;
@@ -29,7 +27,6 @@ impl Handler {
     /// Handle the incoming request and send back a response
     /// from the matched plugin to the caller.
     pub async fn handle_request(&self, request: impl Into<Request>) -> Result<Response> {
-        let instant = Instant::now();
         let request = request.into();
         let req_id = request
             .header("x-request-id")
@@ -39,26 +36,19 @@ impl Handler {
             ))?
             .as_str()
             .to_owned();
-        let path = request.url().path().to_owned();
-        let method = request.method();
-        debug!("received request {} {}", method, path, { id: req_id.as_str() });
 
         let (plugin, handler) = {
             let registry = self.0.lock().await;
             registry
-                .match_plugin_handler(&path)
+                .match_plugin_handler(request.url().path())
                 .ok_or(Error::from_str(StatusCode::NotFound, "no plugin matched"))?
         };
 
-        let plugin = plugin.name();
-        debug!("matched plugin \"{}\"", plugin);
-
         let mut response = handler.handle_request(request).await;
-        let status: u16 = response.status().into();
-        info!("[{}] {} {} {}", plugin, status, method, path, {
-            req_id: req_id.as_str(), status: status, dur: instant.elapsed().as_nanos() as u64
-        });
+
         response.insert_header("x-correlation-id", req_id);
+        response.insert_header("x-valor-plugin", plugin.name());
+
         Ok(response)
     }
 }
