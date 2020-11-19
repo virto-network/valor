@@ -11,7 +11,7 @@ Plugin types:
 |        | Rust(WASM Worker) | JS(Worker) | Rust(Native) | WASI |
 |--------|-------------------|------------|--------------|------|
 | Server | ⚠️ | ⚠️ | ⚠️ | ❓ |
-| Browser| ✖️ | ⚠️ | ⚠️ | ❓ |
+| Browser| ⚠️ | ⚠️ | ✖️ | ❓ |
 
 ### Handling HTTP requests
 
