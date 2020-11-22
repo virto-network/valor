@@ -5,13 +5,13 @@ authors = ["Daniel Olano <daniel@olanod.com>"]
 edition = "2018"
 
 [dependencies]
-async-std = { version = "1.6.5", features = ["attributes"] }
-async-trait = "0.1.41"
+async-std = { version = "1.7.0", features = ["attributes"] }
 femme = "2.1.1"
 kv-log-macro = "1.0.7"
-tide = { version = "0.14.0", default-features = false, features = ["h1-server"] }
+libloading = "0.6.5"
+tide = "0.15.0"
 uuid = { version = "0.8.1", features = ["v4"] }
-valor = { path = "..", package = "valor-rs" }
+valor = { path = "..", package = "valor-rs", features = ["native"] }
 
 [[bin]]
 name = "valor"

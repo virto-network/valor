@@ -1,0 +1,12 @@
+[package]
+name = "vlugin"
+version = "0.1.0"
+authors = ["Daniel Olano <daniel@olanod.com>"]
+edition = "2018"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote = "1.0.7"
+syn = "1.0.48"

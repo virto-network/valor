@@ -1,45 +1,57 @@
-use kv_log_macro::{debug, info};
+use kv_log_macro::{debug, error, info};
+use loader::DynLoader;
+use std::sync::Arc;
 use std::time::Instant;
+use tide::Request;
 use uuid::Uuid;
 
+mod loader;
+
 #[async_std::main]
-pub async fn main() -> tide::Result<()> {
+async fn main() {
     femme::with_level(femme::LevelFilter::Debug);
 
-    let handler = Handler(valor::Handler::new().await);
+    let loader = Arc::new(DynLoader);
     let mut app = tide::new();
-    app.at("/*").all(handler);
+    app.at("*").all(handler(valor::Handler::new(loader)));
 
-    app.listen(("localhost", 8080)).await?;
-    Ok(())
+    if let Err(err) = app.listen(("localhost", 8080)).await {
+        error!("{}", err);
+    }
 }
-
-struct Handler(valor::Handler);
 
 const REQ_ID_HEADER: &'static str = "x-request-id";
 
-#[async_trait::async_trait]
-impl tide::Endpoint<()> for Handler {
-    async fn call(&self, mut req: tide::Request<()>) -> tide::Result {
-        let instant = Instant::now();
+fn handler(handler: valor::Handler) -> impl tide::Endpoint<()> {
+    move |mut req: Request<()>| {
+        let plugins = handler.clone();
+        async move {
+            let plugins = plugins.clone();
+            let instant = Instant::now();
+            if req.header(REQ_ID_HEADER).is_none() {
+                let id = Uuid::new_v4().to_string();
+                req.insert_header(REQ_ID_HEADER, id);
+            }
 
-        if req.header(REQ_ID_HEADER).is_none() {
-            req.insert_header(REQ_ID_HEADER, Uuid::new_v4().to_string());
+            let id = req.header(REQ_ID_HEADER).unwrap().as_str();
+            let method = req.method();
+            let path = req.url().path().to_string();
+            debug!("received request {} {}", method, path, { id: id });
+
+            let res = plugins
+                .handle_request(req.into())
+                .await
+                .unwrap_or_else(|err| err);
+
+            let id = res.header("x-correlation-id").unwrap().as_str();
+            let plugin = res.header("x-valor-plugin").unwrap().as_str();
+            let status: u16 = res.status().into();
+
+            info!("[{}] {} {} {}", plugin, status, method, path, {
+                id: id, status: status, nanos: instant.elapsed().as_nanos() as u64
+            });
+
+            Ok(res)
         }
-        let id = req.header(REQ_ID_HEADER).unwrap().as_str();
-        let path = req.url().path().to_string();
-        let method = req.method();
-        debug!("received request {} {}", method, path, { id: id });
-
-        let response = self.0.handle_request(req).await.map(tide::Response::from)?;
-
-        let status: u16 = response.status().into();
-        let plugin = response.header("x-valor-plugin").unwrap().as_str();
-        let id = response.header("x-correlation-id").unwrap().as_str();
-        info!("[{}] {} {} {}", plugin, status, method, path, {
-            id: id, status: status, nanos: instant.elapsed().as_nanos() as u64
-        });
-
-        Ok(response)
     }
 }
