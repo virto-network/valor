@@ -1,48 +1,55 @@
 # Valibre Open Runtime
 
-A plug-in based system that allows running Javascript or WebAssembly modules that register HTTP API handlers. Plug-ins follow the WebWorker API so that the same system can run unchanged in a server environment(with the help of deno-core) as well as in a web browser(intercepting HTTP calls from a service worker).
+A plug-in based system that allows running Javascript, WebAssembly or native modules that handle HTTP API requests. Plug-ins are expected to follow the WebWorker API so that the same file can run unchanged in a server environment as well as in a web browser(intercepting HTTP calls from a service worker).
 
-## Plug-in system - WebWorkers all the way
+## Plug-in system
 
-The Web Worker API is simple yet quite powerful, allows for asynchronous receiving of messsages using the `onmessage` handler and sending messages back to the host with the `postMessage()` function, long running blocking tasks are not a problem since a worker is executed in its own thread and it comes with a variety of high level APIs like `fetch`, `IndexDB` and `WebSocket` among others.
+Since the Web Worker API is quite powerful and simple to use, i.e. we only receive asynchronous messsages with the `onmessage` callback and answer back the host with the `postMessage()` function, is quite suitable to use as the baseline for our plugins. We can for example have long running blocking tasks because of the worker's nature of being executed in its own thread. Also comes with a variety of high level APIs like `fetch`, `IndexDB` and `WebSocket` among others which suit most common needs. That's why even for native Rust plugins is recommended to only use dependencies that can compile to WASM and run in the context of a worker.
+
+Plugin types:
+
+|        | Rust(WASM Worker) | JS(Worker) | Rust(Native) | WASI |
+|--------|-------------------|------------|--------------|------|
+| Server | ⚠️ | ⚠️ | ⚠️ | ❓ |
+| Browser| ⚠️ | ⚠️ | ✖️ | ❓ |
 
 ### Handling HTTP requests
 
-**First register the plug-in** dynamically with a `POST` to the `/_plugin` endpoint.  
-JSON Body:
+#### Rust plugins
 
-```json
-{
-  "name": "<plug-in name>",
-  "url": "<plug-in URL>", 
-  "prefix": "<URL prefix>"
-}
-```
-Incoming requests are matched with the prefix and sent to the registered worker. The worker receives a JSON message with details about the request and its body.
+The recommended way to get the best performance and support would be to create a plugin in Rust. Simply include the helper macro and types and declare your handler.
 
-#### Request message example
-```json
-{
-  "rid": 123,
-  "uri": "/path/without/prefix",
-  "method": "GET",
-  "type": "json",
-  "body": null
-}
-```
-> **TODO** Define how multipart form/data should be received.
+```rust
+use valor::*;
 
-To reply you can `postMessage()` a reply containing the request ID(`rid`) so the host can reply to the waiting client.
-
-#### Response example
-```json
-{
-  "rid": 123,
-  "status": 200,
-  "body": {}
+#[vlugin]
+async fn my_handler(req: Request) -> Response {
+    "OK response from a plugin".into()
 }
 ```
 
-### Inter plug-in communication
+Depending on the compilation target it will adapt to use the browser's built-in WASM compiler or run natively server.
 
-> **TODO**
+#### JS plugins
+
+> ⚠️ This is a work in progress, there aren't helpers yet and there's no support in the server(will come powered by Deno).
+
+As it runs in a Worker, you would listen to the `message` event receiving request messages that look like:
+
+```js
+const request = {
+  url: 'some/url',
+  method: 'GET',
+  headers: [['x-request-id', '123abc']], // list of headers
+  body: null, // or an ArrayBuffer
+}
+```
+The response would then look like
+```js
+postMessage({
+  status: 200,
+  headers: [['x-correlation-id', '123abc']],
+  body: null, // or an ArrayBuffer
+})
+```
+
