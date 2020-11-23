@@ -1,4 +1,4 @@
-use kv_log_macro::{debug, error, info};
+use kv_log_macro::{error, info};
 use loader::DynLoader;
 use std::sync::Arc;
 use std::time::Instant;
@@ -33,15 +33,10 @@ fn handler(handler: valor::Handler) -> impl tide::Endpoint<()> {
                 req.insert_header(REQ_ID_HEADER, id);
             }
 
-            let id = req.header(REQ_ID_HEADER).unwrap().as_str();
             let method = req.method();
             let path = req.url().path().to_string();
-            debug!("received request {} {}", method, path, { id: id });
 
-            let res = plugins
-                .handle_request(req.into())
-                .await
-                .unwrap_or_else(|err| err);
+            let res = plugins.handle_request(req).await.unwrap_or_else(|err| err);
 
             let id = res.header("x-correlation-id").unwrap().as_str();
             let plugin = res.header("x-valor-plugin").unwrap().as_str();

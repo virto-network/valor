@@ -33,7 +33,8 @@ impl Handler {
 
     /// Handle the incoming request and send back a response
     /// from the matched plugin to the caller.
-    pub async fn handle_request(&self, request: Request) -> Result {
+    pub async fn handle_request(&self, request: impl Into<Request>) -> Result {
+        let request = request.into();
         let req_id = request
             .header("x-request-id")
             .ok_or(res(StatusCode::BadRequest, "Missing request ID"))?

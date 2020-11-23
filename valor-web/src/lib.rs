@@ -3,7 +3,8 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 use js_sys::{Array, ArrayBuffer, Object, Reflect, Uint8Array};
 use std::rc::Rc;
-use valor::{Handler, Request, Response, Url};
+use std::sync::Arc;
+use valor::{Handler, Plugin, Request, RequestHandler, Response, Url};
 use wasm_bindgen::{prelude::*, JsCast};
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{window, BroadcastChannel, MessageEvent};
@@ -43,7 +44,7 @@ pub async fn run() -> Result<(), JsValue> {
     init_log();
     load_service_worker("sw.js")?;
 
-    let handler = Handler::new().await;
+    let handler = Handler::new(Arc::new(Loader));
 
     let req_channel = BroadcastChannel::new("req_channel")?;
     let res_channel = Rc::new(BroadcastChannel::new("res_channel")?);
@@ -59,12 +60,13 @@ pub async fn run() -> Result<(), JsValue> {
         let responses = res_channel.clone();
         let h = handler.clone();
         spawn_local(async move {
-            match h.handle_request(req).await {
-                Ok(res) => responses
-                    .post_message(&to_js_response(res).await)
-                    .expect("response"),
-                Err(err) => log::warn!("{}", err),
+            let res = h.handle_request(req).await.unwrap_or_else(|err| err);
+            let status = res.status();
+            let res = to_js_response(res).await;
+            if !status.is_success() {
+                log::warn!("{:?}", res);
             }
+            responses.post_message(&res).expect("response");
         });
     }) as Box<dyn Fn(MessageEvent)>);
     req_channel.set_onmessage(Some(on_msg.as_ref().unchecked_ref()));
@@ -80,6 +82,17 @@ fn load_service_worker(url: &str) -> Result<(), JsValue> {
         .service_worker()
         .register(url);
     Ok(())
+}
+
+struct Loader;
+
+impl valor::Loader for Loader {
+    fn load(&self, plugin: &Plugin) -> std::result::Result<Box<dyn RequestHandler>, ()> {
+        match plugin {
+            Plugin::WebWorker { .. } => todo!(),
+            _ => unreachable!(),
+        }
+    }
 }
 
 async fn to_js_response(mut response: Response) -> JsValue {
