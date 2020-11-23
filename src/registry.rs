@@ -1,4 +1,4 @@
-use crate::{res, Loader, Method, Plugin, Request, RequestHandler, StatusCode};
+use crate::{res, HandlerResponse, Loader, Method, Plugin, Request, RequestHandler, StatusCode};
 use path_tree::PathTree;
 use serde_json as json;
 use std::collections::HashMap;
@@ -78,10 +78,7 @@ impl PluginRegistry {
                         },
                         _ => res(StatusCode::MethodNotAllowed, ""),
                     }
-                })
-                    as std::pin::Pin<
-                        Box<dyn std::future::Future<Output = http_types::Response> + Send>,
-                    >
+                }) as HandlerResponse
             }),
         )
     }

@@ -71,15 +71,17 @@ pub(crate) fn res(status: StatusCode, msg: impl Into<Body>) -> Response {
     res
 }
 
+pub type HandlerResponse = Pin<Box<dyn Future<Output = Response> + Send>>;
+
 pub trait RequestHandler: Send + Sync {
-    fn handle_request(&self, request: Request) -> Pin<Box<dyn Future<Output = Response> + Send>>;
+    fn handle_request(&self, request: Request) -> HandlerResponse;
 }
 
 impl<F> RequestHandler for F
 where
-    F: Fn(Request) -> Pin<Box<dyn Future<Output = Response> + Send>> + Send + Sync,
+    F: Fn(Request) -> HandlerResponse + Send + Sync,
 {
-    fn handle_request(&self, request: Request) -> Pin<Box<dyn Future<Output = Response> + Send>> {
+    fn handle_request(&self, request: Request) -> HandlerResponse {
         self(request)
     }
 }
