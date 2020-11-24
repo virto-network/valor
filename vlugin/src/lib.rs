@@ -12,7 +12,7 @@ pub fn vlugin(_attr: TokenStream, input: TokenStream) -> TokenStream {
 
     let plugin_def = quote! {
         #[no_mangle]
-        pub extern "Rust" fn _request_handler() -> Box<dyn valor::RequestHandler> {
+        pub extern "Rust" fn get_request_handler() -> Box<dyn valor::RequestHandler> {
             sync_req_handler()
         }
 

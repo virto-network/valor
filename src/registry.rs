@@ -66,14 +66,13 @@ impl PluginRegistry {
                                 })
                         }
                         Method::Post => match req.body_json().await {
-                            Ok(plugin) => {
-                                if let Ok(handler) = loader.load(&plugin) {
+                            Ok(plugin) => match loader.load(&plugin) {
+                                Ok(handler) => {
                                     registry.register(plugin, handler);
                                     res(StatusCode::Created, "")
-                                } else {
-                                    res(StatusCode::UnprocessableEntity, "")
                                 }
-                            }
+                                Err(_) => res(StatusCode::UnprocessableEntity, ""),
+                            },
                             Err(_) => res(StatusCode::BadRequest, ""),
                         },
                         _ => res(StatusCode::MethodNotAllowed, ""),

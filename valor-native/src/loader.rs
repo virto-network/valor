@@ -1,6 +1,6 @@
 use kv_log_macro::debug;
 use libloading::{Library, Symbol};
-use valor::{Loader, Plugin, RequestHandler};
+use valor::{HandlerResponse, Loader, Plugin, Request, RequestHandler};
 
 pub(crate) struct DynLoader;
 
@@ -12,13 +12,26 @@ impl Loader for DynLoader {
                 let lib = Library::new(path).map_err(|_| ())?;
 
                 debug!("loading native plugin {}", path);
-                let plugin: Symbol<fn() -> _> =
-                    unsafe { lib.get(b"_request_handler") }.map_err(|_| ())?;
+                let get_request_handler: Symbol<fn() -> _> =
+                    unsafe { lib.get(b"get_request_handler") }.map_err(|_| ())?;
                 debug!("symbol {:?}", plugin);
 
-                Ok(plugin())
+                let handler = get_request_handler();
+
+                Ok(Box::new(PluginContainer { handler, _lib: lib }))
             }
             _ => Err(()),
         }
+    }
+}
+
+struct PluginContainer {
+    handler: Box<dyn RequestHandler>,
+    _lib: Library,
+}
+
+impl RequestHandler for PluginContainer {
+    fn handle_request(&self, request: Request) -> HandlerResponse {
+        self.handler.handle_request(request)
     }
 }
