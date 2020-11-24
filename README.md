@@ -10,7 +10,7 @@ Plugin types:
 
 |        | Rust(WASM Worker) | JS(Worker) | Rust(Native) | WASI |
 |--------|-------------------|------------|--------------|------|
-| Server | ⚠️ | ⚠️ | ⚠️ | ❓ |
+| Server | ⚠️ | ⚠️ | ✅ | ❓ |
 | Browser| ⚠️ | ⚠️ | ✖️ | ❓ |
 
 ### Handling HTTP requests
@@ -23,7 +23,7 @@ The recommended way to get the best performance and support would be to create a
 use valor::*;
 
 #[vlugin]
-async fn my_handler(req: Request) -> Response {
+fn my_handler(req: Request) -> Response {
     "OK response from a plugin".into()
 }
 ```

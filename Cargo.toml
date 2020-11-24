@@ -2,7 +2,7 @@
 name = "valor-rs"
 description = "Plugin runtime as HTTP API running in server and browser"
 license = "GPL-3.0-or-later"
-version = "0.2.0-alpha"
+version = "0.3.0"
 authors = ["Daniel Olano <daniel@olanod.com>"]
 edition = "2018"
 repository = "https://github.com/valibre-org/valor"
@@ -31,5 +31,5 @@ members = [
 [profile.release.package.valor-web]
 opt-level = "s"
 
-#[profile.release]
-#lto = true
+[profile.release]
+lto = true
