@@ -1,6 +1,6 @@
 [package]
-name = "vlugin"
-version = "0.1.0"
+name = "valor-vlugin"
+version = "0.3.2"
 authors = ["Daniel Olano <daniel@olanod.com>"]
 edition = "2018"
 
