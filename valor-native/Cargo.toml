@@ -2,8 +2,10 @@
 name = "valor-native"
 authors = ["Daniel Olano <daniel@olanod.com>"]
 description = "Valor native runtime to run on the server side"
-version = "0.3.4"
 edition = "2018"
+license = "GPL-3.0-or-later"
+repository = "https://github.com/valibre-org/valor"
+version = "0.3.4"
 
 [dependencies]
 async-std = { version = "1.7.0", features = ["attributes"] }
