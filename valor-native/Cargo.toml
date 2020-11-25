@@ -1,7 +1,8 @@
 [package]
 name = "valor-native"
-version = "0.1.0"
 authors = ["Daniel Olano <daniel@olanod.com>"]
+description = "Valor native runtime to run on the server side"
+version = "0.3.3"
 edition = "2018"
 
 [dependencies]
@@ -11,7 +12,7 @@ kv-log-macro = "1.0.7"
 libloading = "0.6.5"
 tide = "0.15.0"
 uuid = { version = "0.8.1", features = ["v4"] }
-valor = { path = "..", package = "valor-rs", features = ["native"] }
+valor = { path = "..", package = "valor-lib", features = ["native"] }
 
 [[bin]]
 name = "valor"

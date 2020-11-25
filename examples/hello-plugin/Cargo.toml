@@ -5,7 +5,7 @@ authors = ["Daniel Olano <daniel@olanod.com>"]
 edition = "2018"
 
 [dependencies]
-valor = { path = "../..", package = "valor-rs" }
+valor = { path = "../..", package = "valor-lib" }
 
 [lib]
 crate-type = ["dylib"]
