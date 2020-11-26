@@ -2,6 +2,7 @@ use crate::{res, HandlerResponse, Loader, Method, Plugin, Request, RequestHandle
 use path_tree::PathTree;
 use serde_json as json;
 use std::collections::HashMap;
+use std::fmt;
 use std::iter::Iterator;
 use std::sync::{Arc, Mutex};
 
@@ -80,5 +81,17 @@ impl PluginRegistry {
                 }) as HandlerResponse
             }),
         )
+    }
+}
+
+impl fmt::Debug for PluginRegistry
+where
+    for<'a> dyn RequestHandler + 'a: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("PluginRegistry")
+            .field("plugins", &self.plugins)
+            .field("routes", &self.routes)
+            .finish()
     }
 }

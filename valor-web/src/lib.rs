@@ -1,5 +1,7 @@
+//! Valor web
+
 #[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+static ALLOC: wee_alloc::WeeAlloc<'_> = wee_alloc::WeeAlloc::INIT;
 
 use js_sys::{Array, ArrayBuffer, Object, Reflect, Uint8Array};
 use std::rc::Rc;
@@ -39,6 +41,7 @@ impl From<JsRequest> for Request {
     }
 }
 
+/// Run
 #[wasm_bindgen(start)]
 pub async fn run() -> Result<(), JsValue> {
     init_log();
@@ -87,7 +90,7 @@ fn load_service_worker(url: &str) -> Result<(), JsValue> {
 struct Loader;
 
 impl valor::Loader for Loader {
-    fn load(&self, plugin: &Plugin) -> std::result::Result<Box<dyn RequestHandler>, ()> {
+    fn load(&self, plugin: &Plugin) -> Result<Box<dyn RequestHandler>, ()> {
         match plugin {
             Plugin::WebWorker { .. } => todo!(),
             _ => unreachable!(),

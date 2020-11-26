@@ -1,7 +1,10 @@
+//! Valor
+
 use http_types::Body;
 pub use http_types::{Method, Request, Response, StatusCode, Url};
 use registry::PluginRegistry;
 use serde::{Deserialize, Serialize};
+use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
@@ -24,6 +27,7 @@ type Result = std::result::Result<Response, Response>;
 pub struct Handler(Arc<PluginRegistry>);
 
 impl Handler {
+    /// Creates a new `Handler` instance
     pub fn new(loader: Arc<impl Loader>) -> Self {
         let registry = PluginRegistry::new();
         let (plugin, handler) = registry.clone().as_handler(loader);
@@ -60,7 +64,18 @@ impl Clone for Handler {
     }
 }
 
+impl fmt::Debug for Handler
+where
+    for<'a> dyn RequestHandler + 'a: fmt::Debug,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_tuple("Handler").field(&self.0).finish()
+    }
+}
+
+/// Loader
 pub trait Loader: Send + Sync + 'static {
+    /// Loads the given `plugin`
     fn load(&self, plugin: &Plugin) -> std::result::Result<Box<dyn RequestHandler>, ()>;
 }
 
@@ -71,9 +86,12 @@ pub(crate) fn res(status: StatusCode, msg: impl Into<Body>) -> Response {
     res
 }
 
+/// Handler response
 pub type HandlerResponse = Pin<Box<dyn Future<Output = Response> + Send>>;
 
+/// Request handler
 pub trait RequestHandler: Send + Sync {
+    /// Handles the request
     fn handle_request(&self, request: Request) -> HandlerResponse;
 }
 
@@ -86,13 +104,31 @@ where
     }
 }
 
+/// Plugin
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Plugin {
-    BuiltIn { name: String },
+    /// Built in
+    BuiltIn {
+        /// Name
+        name: String,
+    },
+    /// Dummy
     Dummy,
-    Native { name: String, path: Option<String> },
-    WebWorker { name: String, url: Url },
+    /// Native
+    Native {
+        /// Name
+        name: String,
+        /// Path
+        path: Option<String>,
+    },
+    /// Web worker
+    WebWorker {
+        /// Name
+        name: String,
+        /// Url
+        url: Url,
+    },
 }
 
 impl Plugin {
