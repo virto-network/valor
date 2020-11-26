@@ -1,3 +1,5 @@
+//! Valor vlupin
+
 use kv_log_macro::{error, info};
 use loader::DynLoader;
 use std::sync::Arc;

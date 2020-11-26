@@ -12,7 +12,7 @@ impl Loader for DynLoader {
                 let lib = Library::new(path).map_err(|_| ())?;
 
                 debug!("loading native plugin {}", path);
-                let get_request_handler: Symbol<fn() -> _> =
+                let get_request_handler: Symbol<'_, fn() -> _> =
                     unsafe { lib.get(b"get_request_handler") }.map_err(|_| ())?;
                 debug!("symbol {:?}", plugin);
 
