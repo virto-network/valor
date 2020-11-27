@@ -9,6 +9,7 @@ version = "0.3.4"
 
 [dependencies]
 async-std = { version = "1.7.0", features = ["attributes"] }
+async-trait = "0.1.42"
 femme = "2.1.1"
 kv-log-macro = "1.0.7"
 libloading = "0.6.5"

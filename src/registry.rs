@@ -67,7 +67,7 @@ impl PluginRegistry {
                                 })
                         }
                         Method::Post => match req.body_json().await {
-                            Ok(plugin) => match loader.load(&plugin) {
+                            Ok(plugin) => match loader.load(&plugin).await {
                                 Ok(handler) => {
                                     registry.register(plugin, handler);
                                     res(StatusCode::Created, "")

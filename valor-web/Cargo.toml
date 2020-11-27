@@ -16,6 +16,7 @@ wasm-bindgen-futures = "0.4.18"
 wee_alloc = "0.4.5"
 js-sys = "0.3.45"
 thiserror = "1.0.21"
+async-trait = "0.1.42"
 
 [dependencies.web-sys]
 version = "0.3.45"

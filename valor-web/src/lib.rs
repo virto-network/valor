@@ -4,12 +4,15 @@
 static ALLOC: wee_alloc::WeeAlloc<'_> = wee_alloc::WeeAlloc::INIT;
 
 use js_sys::{Array, ArrayBuffer, Object, Reflect, Uint8Array};
+use loader::Loader;
 use std::rc::Rc;
 use std::sync::Arc;
-use valor::{Handler, Plugin, Request, RequestHandler, Response, Url};
+use valor::{Handler, Request, Response, Url};
 use wasm_bindgen::{prelude::*, JsCast};
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{window, BroadcastChannel, MessageEvent};
+
+mod loader;
 
 #[wasm_bindgen]
 extern "C" {
@@ -22,6 +25,20 @@ extern "C" {
     fn headers(this: &JsRequest) -> Vec<JsValue>;
     #[wasm_bindgen(method, getter)]
     fn body(this: &JsRequest) -> ArrayBuffer;
+}
+
+impl From<Request> for JsRequest {
+    fn from(req: Request) -> Self {
+        // TODO
+        let request = Object::new();
+        Reflect::set(
+            &request,
+            &JsValue::from("method"),
+            &JsValue::from(req.method().as_ref()),
+        )
+        .unwrap();
+        request
+    }
 }
 
 impl From<JsRequest> for Request {
@@ -85,17 +102,6 @@ fn load_service_worker(url: &str) -> Result<(), JsValue> {
         .service_worker()
         .register(url);
     Ok(())
-}
-
-struct Loader;
-
-impl valor::Loader for Loader {
-    fn load(&self, plugin: &Plugin) -> Result<Box<dyn RequestHandler>, ()> {
-        match plugin {
-            Plugin::WebWorker { .. } => todo!(),
-            _ => unreachable!(),
-        }
-    }
 }
 
 async fn to_js_response(mut response: Response) -> JsValue {

@@ -1,5 +1,6 @@
 //! Valor
 
+use async_trait::async_trait;
 use http_types::Body;
 pub use http_types::{Method, Request, Response, StatusCode, Url};
 use registry::PluginRegistry;
@@ -8,7 +9,8 @@ use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-pub use vlugin::vlugin;
+#[cfg(feature = "util")]
+pub use valor_vlugin::vlugin;
 
 mod registry;
 
@@ -74,9 +76,10 @@ where
 }
 
 /// Loader
+#[async_trait]
 pub trait Loader: Send + Sync + 'static {
     /// Loads the given `plugin`
-    fn load(&self, plugin: &Plugin) -> std::result::Result<Box<dyn RequestHandler>, ()>;
+    async fn load(&self, plugin: &Plugin) -> std::result::Result<Box<dyn RequestHandler>, ()>;
 }
 
 #[inline]
@@ -90,17 +93,19 @@ pub(crate) fn res(status: StatusCode, msg: impl Into<Body>) -> Response {
 pub type HandlerResponse = Pin<Box<dyn Future<Output = Response> + Send>>;
 
 /// Request handler
+#[async_trait]
 pub trait RequestHandler: Send + Sync {
     /// Handles the request
-    fn handle_request(&self, request: Request) -> HandlerResponse;
+    async fn handle_request(&self, request: Request) -> Response;
 }
 
+#[async_trait]
 impl<F> RequestHandler for F
 where
     F: Fn(Request) -> HandlerResponse + Send + Sync,
 {
-    fn handle_request(&self, request: Request) -> HandlerResponse {
-        self(request)
+    async fn handle_request(&self, request: Request) -> Response {
+        self(request).await
     }
 }
 
@@ -122,8 +127,8 @@ pub enum Plugin {
         /// Path
         path: Option<String>,
     },
-    /// Web worker
-    WebWorker {
+    /// Web script or WASM
+    Web {
         /// Name
         name: String,
         /// Url
@@ -137,7 +142,7 @@ impl Plugin {
             Self::Dummy => "dummy",
             Self::BuiltIn { name } => name,
             Self::Native { name, .. } => name,
-            Self::WebWorker { name, .. } => name,
+            Self::Web { name, .. } => name,
         }
         .into()
     }
@@ -147,7 +152,7 @@ impl Plugin {
             Self::BuiltIn { name } => ["_", name].join(""),
             Self::Dummy => "__dummy__".into(),
             Self::Native { name, .. } => name.into(),
-            Self::WebWorker { name, .. } => name.into(),
+            Self::Web { name, .. } => name.into(),
         }
     }
 }

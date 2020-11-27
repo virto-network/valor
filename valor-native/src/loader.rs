@@ -1,11 +1,13 @@
+use async_trait::async_trait;
 use kv_log_macro::debug;
 use libloading::{Library, Symbol};
-use valor::{HandlerResponse, Loader, Plugin, Request, RequestHandler};
+use valor::{Loader, Plugin, Request, RequestHandler, Response};
 
 pub(crate) struct DynLoader;
 
+#[async_trait]
 impl Loader for DynLoader {
-    fn load(&self, plugin: &Plugin) -> Result<Box<dyn RequestHandler>, ()> {
+    async fn load(&self, plugin: &Plugin) -> Result<Box<dyn RequestHandler>, ()> {
         match plugin {
             Plugin::Native { name, path } => {
                 let path = path.as_ref().unwrap_or(name);
@@ -30,8 +32,9 @@ struct PluginContainer {
     _lib: Library,
 }
 
+#[async_trait]
 impl RequestHandler for PluginContainer {
-    fn handle_request(&self, request: Request) -> HandlerResponse {
-        self.handler.handle_request(request)
+    async fn handle_request(&self, request: Request) -> Response {
+        self.handler.handle_request(request).await
     }
 }
