@@ -8,7 +8,7 @@ use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-pub use vlugin::vlugin;
+pub use valor_vlugin::vlugin;
 
 mod registry;
 

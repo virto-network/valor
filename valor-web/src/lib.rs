@@ -42,8 +42,20 @@ impl From<JsRequest> for Request {
 }
 
 /// Run
+#[cfg(feature = "start-entrypoint")]
 #[wasm_bindgen(start)]
 pub async fn run() -> Result<(), JsValue> {
+    do_run()
+}
+
+/// Run
+#[cfg(not(feature = "start-entrypoint"))]
+#[wasm_bindgen]
+pub async fn run() -> Result<(), JsValue> {
+    do_run()
+}
+
+fn do_run() -> Result<(), JsValue> {
     init_log();
     load_service_worker("sw.js")?;
 

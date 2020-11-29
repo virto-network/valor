@@ -16,6 +16,10 @@ build_web: clean_web
 	@echo 'wasm_bindgen();' >> ${WEB_OUT}/lib/valor.js
 	@cp valor-web/sw.js  ${WEB_OUT}
 	@cp valor-web/example.html  ${WEB_OUT}/index.html
+
 clean_web:
 	@rm -rf ${WEB_OUT}
 
+build_examples:
+	wasm-pack build valor-web -- --no-default-features
+	@cp -R valor-web/pkg examples/web-worker

@@ -25,3 +25,7 @@ features = [
 	"ServiceWorkerContainer",
 	"Window",
 ]
+
+[features]
+default = ["start-entrypoint"]
+start-entrypoint = []
