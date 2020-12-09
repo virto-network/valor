@@ -1,16 +1,33 @@
 //! Valor
 
 use async_trait::async_trait;
-use http_types::Body;
 pub use http_types::{Method, Request, Response, StatusCode, Url};
 use registry::PluginRegistry;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
 #[cfg(feature = "util")]
 pub use valor_vlugin::vlugin;
+
+// short-hand for creating or modifiying simple responses
+macro_rules! res {
+    () => { res!(http_types::StatusCode::Ok) };
+    ($res:expr) => { res!($res, "") };
+    ($res:expr, { $($h:ident : $v:expr),* $(,)? }) => { res!($res, "", { $($h : $v),* }) };
+    ($res:expr, $b:expr) => { res!($res, $b, {}) };
+    ($res:expr, $b:expr, { $($h:ident : $v:expr),* $(,)? }) => {{
+        let mut res: http_types::Response = $res.into();
+        let body: http_types::Body = $b.into();
+        if body.len().is_some() && !body.is_empty().unwrap() {
+            res.set_body($b);
+        }
+        $(
+            res.insert_header(stringify!($h).replace("_", "-").as_str(), $v);
+        )*
+        res
+    }};
+}
 
 mod registry;
 
@@ -43,20 +60,20 @@ impl Handler {
         let request = request.into();
         let req_id = request
             .header("x-request-id")
-            .ok_or(res(StatusCode::BadRequest, "Missing request ID"))?
+            .ok_or(res!(StatusCode::BadRequest, "Missing request ID"))?
             .as_str()
             .to_owned();
 
-        let (plugin, handler) = self
-            .0
-            .match_plugin_handler(request.url().path())
-            .ok_or(res(StatusCode::NotFound, ""))?;
+        let (plugin, handler) = self.0.match_plugin_handler(request.url().path()).ok_or(
+            res!(StatusCode::NotFound, {
+                x_correlation_id: &req_id,
+            }),
+        )?;
 
-        let mut response = handler.handle_request(request).await;
-        response.insert_header("x-correlation-id", req_id);
-        response.insert_header("x-valor-plugin", plugin.name());
-
-        Ok(response)
+        Ok(res!(handler.handle_request(request).await, {
+            x_correlation_id: req_id,
+            x_valor_plugin: plugin.name()
+        }))
     }
 }
 
@@ -70,39 +87,30 @@ impl fmt::Debug for Handler
 where
     for<'a> dyn RequestHandler + 'a: fmt::Debug,
 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_tuple("Handler").field(&self.0).finish()
     }
 }
 
 /// Loader
-#[async_trait]
-pub trait Loader: Send + Sync + 'static {
+#[async_trait(?Send)]
+pub trait Loader: 'static {
     /// Loads the given `plugin`
     async fn load(&self, plugin: &Plugin) -> std::result::Result<Box<dyn RequestHandler>, ()>;
 }
 
-#[inline]
-pub(crate) fn res(status: StatusCode, msg: impl Into<Body>) -> Response {
-    let mut res = Response::new(status);
-    res.set_body(msg);
-    res
-}
-
-/// Handler response
-pub type HandlerResponse = Pin<Box<dyn Future<Output = Response> + Send>>;
-
 /// Request handler
-#[async_trait]
-pub trait RequestHandler: Send + Sync {
+#[async_trait(?Send)]
+pub trait RequestHandler {
     /// Handles the request
     async fn handle_request(&self, request: Request) -> Response;
 }
 
-#[async_trait]
-impl<F> RequestHandler for F
+#[async_trait(?Send)]
+impl<F, R> RequestHandler for F
 where
-    F: Fn(Request) -> HandlerResponse + Send + Sync,
+    F: Fn(Request) -> R,
+    R: Future<Output = Response> + 'static,
 {
     async fn handle_request(&self, request: Request) -> Response {
         self(request).await

@@ -16,6 +16,17 @@ mod loader;
 
 #[wasm_bindgen]
 extern "C" {
+    type JsResponse;
+    #[wasm_bindgen(method, getter)]
+    fn status(this: &JsResponse) -> u16;
+    #[wasm_bindgen(method, getter)]
+    fn res_headers(this: &JsResponse) -> Vec<JsValue>;
+    #[wasm_bindgen(method, getter)]
+    fn res_body(this: &JsResponse) -> ArrayBuffer;
+}
+
+#[wasm_bindgen]
+extern "C" {
     type JsRequest;
     #[wasm_bindgen(method, getter)]
     fn method(this: &JsRequest) -> String;
@@ -37,7 +48,7 @@ impl From<Request> for JsRequest {
             &JsValue::from(req.method().as_ref()),
         )
         .unwrap();
-        request
+        request.unchecked_into::<JsRequest>()
     }
 }
 
@@ -55,6 +66,18 @@ impl From<JsRequest> for Request {
         }
         request.set_body(body);
         request
+    }
+}
+
+impl From<JsResponse> for Response {
+    fn from(res: JsResponse) -> Self {
+        let status = res.status();
+        let _method = res.res_body();
+        let body = Uint8Array::new(&res.res_body()).to_vec();
+        // TODO headers
+        let mut response = Response::new(status);
+        response.set_body(body);
+        response
     }
 }
 

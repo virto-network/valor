@@ -1,54 +1,73 @@
 //! Valor vlupin
 
+use async_std::task;
+use async_std::{
+    net::{TcpListener, TcpStream},
+    stream::StreamExt,
+};
 use kv_log_macro::{error, info};
 use loader::DynLoader;
 use std::sync::Arc;
 use std::time::Instant;
-use tide::Request;
 use uuid::Uuid;
 
 mod loader;
 
 #[async_std::main]
-async fn main() {
+async fn main() -> http_types::Result<()> {
     femme::with_level(femme::LevelFilter::Debug);
 
-    let loader = Arc::new(DynLoader);
-    let mut app = tide::new();
-    app.at("*").all(handler(valor::Handler::new(loader)));
+    let listener = TcpListener::bind(("0.0.0.0", 8080)).await?;
+    let addr = format!("http://{}", listener.local_addr()?);
+    info!("listening on {}", addr);
 
-    if let Err(err) = app.listen(("localhost", 8080)).await {
-        error!("{}", err);
+    let handler = valor::Handler::new(Arc::new(DynLoader));
+
+    let mut incoming = listener.incoming();
+    while let Some(stream) = incoming.next().await {
+        let stream = stream?;
+        let handler = handler.clone();
+        task::spawn_local(async move {
+            if let Err(err) = accept(stream, handler).await {
+                error!("{}", err);
+            }
+        });
     }
+    Ok(())
 }
 
-const REQ_ID_HEADER: &'static str = "x-request-id";
+const REQ_ID_HEADER: &str = "x-request-id";
 
-fn handler(handler: valor::Handler) -> impl tide::Endpoint<()> {
-    move |mut req: Request<()>| {
-        let plugins = handler.clone();
-        async move {
-            let plugins = plugins.clone();
-            let instant = Instant::now();
-            if req.header(REQ_ID_HEADER).is_none() {
-                let id = Uuid::new_v4().to_string();
-                req.insert_header(REQ_ID_HEADER, id);
-            }
-
-            let method = req.method();
-            let path = req.url().path().to_string();
-
-            let res = plugins.handle_request(req).await.unwrap_or_else(|err| err);
-
-            let id = res.header("x-correlation-id").unwrap().as_str();
-            let plugin = res.header("x-valor-plugin").unwrap().as_str();
-            let status: u16 = res.status().into();
-
-            info!("[{}] {} {} {}", plugin, status, method, path, {
-                id: id, status: status, nanos: instant.elapsed().as_nanos() as u64
-            });
-
-            Ok(res)
+async fn accept(stream: TcpStream, handler: valor::Handler) -> http_types::Result<()> {
+    async_h1::accept(stream.clone(), |mut req| async {
+        let handler = handler.clone();
+        let instant = Instant::now();
+        if req.header(REQ_ID_HEADER).is_none() {
+            let id = Uuid::new_v4().to_string();
+            req.insert_header(REQ_ID_HEADER, id);
         }
-    }
+
+        let method = req.method();
+        let path = req.url().path().to_string();
+
+        let res = handler.handle_request(req).await.unwrap_or_else(|err| err);
+
+        let id = res
+            .header("x-correlation-id")
+            .map(|h| h.as_str())
+            .unwrap_or("-");
+        let plugin = res
+            .header("x-valor-plugin")
+            .map(|h| h.as_str())
+            .unwrap_or("unkown");
+        let status: u16 = res.status().into();
+
+        info!("[{}] {} {} {}", plugin, status, method, path, {
+            id: id, status: status, nanos: instant.elapsed().as_nanos() as u64
+        });
+
+        Ok(res)
+    })
+    .await?;
+    Ok(())
 }

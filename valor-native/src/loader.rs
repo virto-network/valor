@@ -5,7 +5,7 @@ use valor::{Loader, Plugin, Request, RequestHandler, Response};
 
 pub(crate) struct DynLoader;
 
-#[async_trait]
+#[async_trait(?Send)]
 impl Loader for DynLoader {
     async fn load(&self, plugin: &Plugin) -> Result<Box<dyn RequestHandler>, ()> {
         match plugin {
@@ -32,7 +32,7 @@ struct PluginContainer {
     _lib: Library,
 }
 
-#[async_trait]
+#[async_trait(?Send)]
 impl RequestHandler for PluginContainer {
     async fn handle_request(&self, request: Request) -> Response {
         self.handler.handle_request(request).await
