@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use kv_log_macro::debug;
+use kv_log_macro::{debug, warn};
 use libloading::{Library, Symbol};
 use valor::{Loader, Plugin, Request, RequestHandler, Response};
 
@@ -11,9 +11,9 @@ impl Loader for DynLoader {
         match plugin {
             Plugin::Native { name, path } => {
                 let path = path.as_ref().unwrap_or(name);
-                let lib = Library::new(path).map_err(|_| ())?;
-
                 debug!("loading native plugin {}", path);
+                let lib = Library::new(path).map_err(|e| { warn!("{}", e); () })?;
+
                 let get_request_handler: Symbol<'_, fn() -> _> =
                     unsafe { lib.get(b"get_request_handler") }.map_err(|_| ())?;
                 debug!("symbol {:?}", plugin);

@@ -57,7 +57,7 @@ async fn accept(stream: TcpStream, handler: valor::Handler) -> http_types::Resul
             .map(|h| h.as_str())
             .unwrap_or("-");
         let plugin = res
-            .header("x-valor-plugin")
+            .header("x-vlugin")
             .map(|h| h.as_str())
             .unwrap_or("unkown");
         let status: u16 = res.status().into();

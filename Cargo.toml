@@ -1,5 +1,5 @@
 [package]
-name = "valor-lib"
+name = "valor_lib"
 description = "Plugin runtime as HTTP API running in server and browser"
 license = "GPL-3.0-or-later"
 version = "0.3.4"
@@ -13,24 +13,25 @@ http-types = "2.8.0"
 path-tree = "0.1.12"
 serde = { version = "1.0.117", default-features = false, features = ["alloc", "derive"] }
 serde_json = "1.0.59"
-valor-vlugin = { version = "0.3.0", path = "./valor-vlugin", optional = true }
+valor_vlugin = { version = "0.3.0", path = "./valor_vlugin", optional = true }
 
 [features]
-util = ["valor-vlugin"]
+util = ["valor_vlugin"]
 native = []
 web = []
 
 [workspace]
-default-members = ["valor-native"]
+default-members = ["valor_native"]
 members = [
-	"valor-native",
-	"valor-web",
-	"valor-vlugin",
+	"valor_native",
+	"valor_web",
+	"valor_vlugin",
 
-	"examples/hello-plugin"
+	"examples/hello_plugin",
+	"examples/with_state",
 ]
 
-[profile.release.package.valor-web]
+[profile.release.package.valor_web]
 opt-level = "s"
 
 [profile.release]

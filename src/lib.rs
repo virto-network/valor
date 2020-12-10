@@ -1,6 +1,6 @@
 //! Valor
 
-use async_trait::async_trait;
+pub use async_trait::async_trait;
 pub use http_types::{Method, Request, Response, StatusCode, Url};
 use registry::PluginRegistry;
 use serde::{Deserialize, Serialize};
@@ -72,7 +72,7 @@ impl Handler {
 
         Ok(res!(handler.handle_request(request).await, {
             x_correlation_id: req_id,
-            x_valor_plugin: plugin.name()
+            x_vlugin: plugin.name()
         }))
     }
 }

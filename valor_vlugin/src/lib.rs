@@ -33,7 +33,7 @@ fn handle_item_fn(item: ItemFn) -> TokenStream2 {
         /// Handler
         #[no_mangle]
         pub extern "Rust" fn get_request_handler() -> Box<dyn valor::RequestHandler> {
-            Box::new(|req| Box::pin(async { #name(req) }) as valor::HandlerResponse)
+            Box::new(|req| async { #name(req) })
         }
 
         #item

@@ -6,8 +6,9 @@ use valor::*;
 #[derive(Default)]
 struct MyHandler;
 
+#[async_trait(?Send)]
 impl RequestHandler for MyHandler {
-    fn handle_request(&self, _: Request) -> HandlerResponse {
+    async fn handle_request(&self, _: Request) -> Response {
         unimplemented!()
     }
 }

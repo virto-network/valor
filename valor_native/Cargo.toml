@@ -1,5 +1,5 @@
 [package]
-name = "valor-native"
+name = "valor_native"
 authors = ["Daniel Olano <daniel@olanod.com>"]
 description = "Valor native runtime to run on the server side"
 edition = "2018"
@@ -16,8 +16,5 @@ http-types = "2.8.0"
 kv-log-macro = "1.0.7"
 libloading = "0.6.5"
 uuid = { version = "0.8.1", features = ["v4"] }
-valor = { version = "0.3.4", path = "..", package = "valor-lib", features = ["native"] }
+valor = { version = "0.3.4", path = "..", package = "valor_lib", features = ["native"] }
 
-[[bin]]
-name = "valor"
-path = "src/main.rs"

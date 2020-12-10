@@ -70,7 +70,7 @@ impl PluginRegistry {
                                     registry.register(plugin, handler);
                                     res!(StatusCode::Created)
                                 }
-                                Err(_) => res!(StatusCode::UnprocessableEntity),
+                                Err(_) => res!(StatusCode::UnprocessableEntity, "Can't load plugin"),
                             },
                             Err(_) => res!(StatusCode::BadRequest),
                         },
