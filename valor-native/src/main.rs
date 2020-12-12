@@ -1,4 +1,4 @@
-//! Valor vlupin
+//! Valor vlugin
 
 use kv_log_macro::{error, info};
 use loader::DynLoader;
