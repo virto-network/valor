@@ -1,4 +1,4 @@
-//! Valor vlupin
+//! Valor vlugin
 
 use kv_log_macro::{error, info};
 use loader::DynLoader;
@@ -40,8 +40,14 @@ fn handler(handler: valor::Handler) -> impl tide::Endpoint<()> {
 
             let res = plugins.handle_request(req).await.unwrap_or_else(|err| err);
 
-            let id = res.header("x-correlation-id").unwrap().as_str();
-            let plugin = res.header("x-valor-plugin").unwrap().as_str();
+            let id = match res.header("x-correlation-id") {
+                Some(hv) => hv.as_str(),
+                None => "No header: x-correlation-id",
+            };
+            let plugin = match res.header("x-valor-plugin") {
+                Some(hv) => hv.as_str(),
+                None => "No header: x-valor-plugin",
+            };
             let status: u16 = res.status().into();
 
             info!("[{}] {} {} {}", plugin, status, method, path, {
