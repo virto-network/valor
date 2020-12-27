@@ -6,9 +6,11 @@ use std::fmt;
 use std::iter::Iterator;
 use std::sync::{Arc, Mutex};
 
+type PluginHandler = (Plugin, Arc<dyn RequestHandler>);
+
 /// Plugin to keep track of registered plugins
 pub(crate) struct PluginRegistry {
-    plugins: Mutex<HashMap<String, (Plugin, Arc<dyn RequestHandler>)>>,
+    plugins: Mutex<HashMap<String, PluginHandler>>,
     routes: Mutex<PathTree<String>>,
 }
 
@@ -22,7 +24,7 @@ impl PluginRegistry {
         })
     }
 
-    pub fn match_plugin_handler(&self, path: &str) -> Option<(Plugin, Arc<dyn RequestHandler>)> {
+    pub fn match_plugin_handler(&self, path: &str) -> Option<PluginHandler> {
         let routes = self.routes.lock().unwrap();
         let plugins = self.plugins.lock().unwrap();
         let (name, _) = routes.find(path)?;
@@ -34,7 +36,7 @@ impl PluginRegistry {
         let mut routes = self.routes.lock().unwrap();
         let mut plugins = self.plugins.lock().unwrap();
         routes.insert(&plugin.prefix(), plugin.name());
-        plugins.insert(plugin.name().into(), (plugin, handler.into()));
+        plugins.insert(plugin.name(), (plugin, handler.into()));
     }
 
     fn plugin_list(&self) -> Vec<Plugin> {

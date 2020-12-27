@@ -111,7 +111,7 @@ async fn to_js_response(mut response: Response) -> JsValue {
         .map(|(name, val)| Array::of2(&JsValue::from(name.as_str()), &JsValue::from(val.as_str())))
         .collect::<Array>();
     Reflect::set(&res, &JsValue::from("headers"), &JsValue::from(&headers)).unwrap();
-    let body = response.body_bytes().await.unwrap_or(vec![]);
+    let body = response.body_bytes().await.unwrap_or_default();
     let body = Uint8Array::from(body.as_slice()).buffer();
     Reflect::set(&res, &JsValue::from("body"), &JsValue::from(body)).unwrap();
     res.into()
