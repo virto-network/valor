@@ -22,7 +22,7 @@ async fn main() {
     }
 }
 
-const REQ_ID_HEADER: &'static str = "x-request-id";
+const REQ_ID_HEADER: &str = "x-request-id";
 
 fn handler(handler: valor::Handler) -> impl tide::Endpoint<()> {
     move |mut req: Request<()>| {

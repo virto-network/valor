@@ -41,14 +41,14 @@ impl Handler {
         let request = request.into();
         let req_id = request
             .header("x-request-id")
-            .ok_or(res(StatusCode::BadRequest, "Missing request ID"))?
+            .ok_or_else(|| res(StatusCode::BadRequest, "Missing request ID"))?
             .as_str()
             .to_owned();
 
         let (plugin, handler) = self
             .0
             .match_plugin_handler(request.url().path())
-            .ok_or(res(StatusCode::NotFound, ""))?;
+            .ok_or_else(|| res(StatusCode::NotFound, ""))?;
 
         let mut response = handler.handle_request(request).await;
         response.insert_header("x-correlation-id", req_id);

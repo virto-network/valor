@@ -39,7 +39,7 @@ fn handle_item_fn(item: ItemFn) -> TokenStream2 {
         #item
     };
 
-    plugin_def.into()
+    plugin_def
 }
 
 fn handle_item_struct(item: ItemStruct) -> TokenStream2 {
@@ -55,5 +55,5 @@ fn handle_item_struct(item: ItemStruct) -> TokenStream2 {
         #item
     };
 
-    plugin_def.into()
+    plugin_def
 }
