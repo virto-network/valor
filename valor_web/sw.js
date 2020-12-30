@@ -1,10 +1,3 @@
-const files = [
-  "/",
-  "/favicon.ico",
-  "/lib/valor.js",
-  "/lib/valor_bg.wasm",
-].map((f) => `${new URL(f, self.location)}`);
-
 self.addEventListener("install", (e) => e.waitUntil(self.skipWaiting()));
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", (e) => e.respondWith(handleRequest(e.request)));
@@ -16,9 +9,12 @@ const reqToTransferable = async (req) => ({
   body: await req.arrayBuffer(),
 });
 
+const hasWhitelistedExt = (url) =>
+  [".html", ".css", ".ico", ".js", ".wasm"].some((ext) => url.endsWith(ext));
+
 async function handleRequest(request) {
   const req = await reqToTransferable(request);
-  return files.includes(req.url)
+  return hasWhitelistedExt(req.url)
     ? fetch(request)
     : broadcastAndWaitResponse(req);
 }

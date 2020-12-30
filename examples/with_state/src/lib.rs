@@ -12,4 +12,3 @@ impl RequestHandler for MyHandler {
         unimplemented!()
     }
 }
-

@@ -2,13 +2,15 @@
 
 pub use async_trait::async_trait;
 pub use http_types::{Method, Request, Response, StatusCode, Url};
+#[cfg(feature = "util")]
+pub use plugin_util::*;
 use registry::PluginRegistry;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::future::Future;
 use std::sync::Arc;
 #[cfg(feature = "util")]
-pub use valor_vlugin::vlugin;
+mod plugin_util;
 
 // short-hand for creating or modifiying simple responses
 macro_rules! res {

@@ -1,6 +1,7 @@
 use crate::{JsRequest, JsResponse};
 use async_trait::async_trait;
-use js_sys::{Function, Object, Promise, Reflect};
+use js_sys::{Function, Promise};
+use log::{debug, warn};
 use valor::{Plugin, Request, RequestHandler, Response, StatusCode};
 use wasm_bindgen::{prelude::*, JsCast};
 use wasm_bindgen_futures::JsFuture;
@@ -19,11 +20,15 @@ extern "C" {
 impl valor::Loader for Loader {
     async fn load(&self, plugin: &Plugin) -> Result<Box<dyn RequestHandler>, ()> {
         match plugin {
-            Plugin::Web { url, .. } => {
-                let handler = load_handler(url.as_str()).await.map_err(|_| ())?;
-                let handler = handler.unchecked_ref::<Object>();
-                let handler = Reflect::get(&handler, &JsValue::from("handler")).map_err(|_| ())?;
-                Ok(Box::new(JsHandler(handler.unchecked_into::<Function>())))
+            Plugin::Web { url, name } => {
+                debug!("loading plugin {} from {}", name, url);
+                let handler = load_handler(url.as_str())
+                    .await
+                    .map_err(|_| warn!("failed loading {}", name))?;
+                let handler = handler
+                    .dyn_into::<Function>()
+                    .map_err(|_| warn!("{} doesn't export handler", name))?;
+                Ok(Box::new(JsHandler(handler)))
             }
             Plugin::Dummy => Ok(Box::new(|_| async { StatusCode::Ok.into() })),
             _ => Err(()),

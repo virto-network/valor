@@ -18,12 +18,14 @@ native: runtime_native plugins_native
 
 web: runtime_web plugins_web
 
-runtime_native: $(OUT_DIR)/valor
 $(OUT_DIR)/valor: $(OUT_DIR)/valor_native ; @mv $< $@
+runtime_native: $(OUT_DIR)/valor
 
-runtime_web: $(OUT_DIR)/valor_web.js
-	@echo 'init();' >> $<
-	@cp $(basename $(<F))/*.{js,html} $(OUT_DIR)
+$(OUT_DIR)/valor.js: $(OUT_DIR)/valor_web.js
+	@mv $< $@; mv $(<D)/valor_*.wasm $(@D)/valor.wasm
+runtime_web: $(OUT_DIR)/valor.js
+	@echo "init('valor.wasm');" >> $<
+	@cp $(basename $(<F))_web/*.{js,html} $(OUT_DIR)
 
 plugins_native: $(PLUGINS:%=$(OUT_DIR)/plugins/%)
 

@@ -34,7 +34,7 @@ impl PluginRegistry {
         let mut routes = self.routes.lock().unwrap();
         let mut plugins = self.plugins.lock().unwrap();
         routes.insert(&plugin.prefix(), plugin.name());
-        plugins.insert(plugin.name().into(), (plugin, handler.into()));
+        plugins.insert(plugin.name(), (plugin, handler.into()));
     }
 
     fn plugin_list(&self) -> Vec<Plugin> {
@@ -70,9 +70,11 @@ impl PluginRegistry {
                                     registry.register(plugin, handler);
                                     res!(StatusCode::Created)
                                 }
-                                Err(_) => res!(StatusCode::UnprocessableEntity, "Can't load plugin"),
+                                Err(_) => {
+                                    res!(StatusCode::UnprocessableEntity, "Can't load plugin")
+                                }
                             },
-                            Err(_) => res!(StatusCode::BadRequest),
+                            Err(e) => res!(StatusCode::BadRequest, e.to_string()),
                         },
                         _ => res!(StatusCode::MethodNotAllowed),
                     }
