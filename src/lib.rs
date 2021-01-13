@@ -1,16 +1,16 @@
 //! Valor
 
 pub use async_trait::async_trait;
-pub use http_types::{Method, Request, Response, StatusCode, Url};
-#[cfg(feature = "util")]
-pub use plugin_util::*;
+pub use http_types::{Method, StatusCode, Url};
 use registry::PluginRegistry;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::future::Future;
 use std::sync::Arc;
 #[cfg(feature = "util")]
-mod plugin_util;
+pub use util::*;
+#[cfg(feature = "util")]
+mod util;
 
 // short-hand for creating or modifiying simple responses
 macro_rules! res {
@@ -33,7 +33,9 @@ macro_rules! res {
 
 mod registry;
 
-type Result = std::result::Result<Response, Response>;
+pub type Request = http_types::Request;
+pub type Response = http_types::Response;
+type Result = core::result::Result<Response, Response>;
 
 /// Handler is the main entry point for dispatching incoming requests
 /// to registered plugins under a specific URL pattern.

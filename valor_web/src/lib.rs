@@ -1,84 +1,24 @@
 //! Valor web
-
-#[global_allocator]
-static ALLOC: wee_alloc::WeeAlloc<'_> = wee_alloc::WeeAlloc::INIT;
-
-use js_sys::{Array, ArrayBuffer, Object, Reflect, Uint8Array};
 use loader::Loader;
 use std::rc::Rc;
 use std::sync::Arc;
-use valor::{Handler, Request, Response, Url};
+use valor::{
+    web::{into_js_response, into_request},
+    Handler,
+};
 use wasm_bindgen::{prelude::*, JsCast};
 use wasm_bindgen_futures::spawn_local;
-use web_sys::{window, BroadcastChannel, MessageEvent};
+use web_sys::{window, BroadcastChannel, MessageEvent, RequestInit};
 
 mod loader;
 
 #[wasm_bindgen]
 extern "C" {
-    type JsResponse;
+    type TransferedRequest;
     #[wasm_bindgen(method, getter)]
-    fn status(this: &JsResponse) -> u16;
+    fn url(this: &TransferedRequest) -> String;
     #[wasm_bindgen(method, getter)]
-    fn res_headers(this: &JsResponse) -> Vec<JsValue>;
-    #[wasm_bindgen(method, getter)]
-    fn res_body(this: &JsResponse) -> ArrayBuffer;
-}
-
-#[wasm_bindgen]
-extern "C" {
-    type JsRequest;
-    #[wasm_bindgen(method, getter)]
-    fn method(this: &JsRequest) -> String;
-    #[wasm_bindgen(method, getter)]
-    fn url(this: &JsRequest) -> String;
-    #[wasm_bindgen(method, getter)]
-    fn headers(this: &JsRequest) -> Vec<JsValue>;
-    #[wasm_bindgen(method, getter)]
-    fn body(this: &JsRequest) -> ArrayBuffer;
-}
-
-impl From<Request> for JsRequest {
-    fn from(req: Request) -> Self {
-        // TODO
-        let request = Object::new();
-        Reflect::set(
-            &request,
-            &JsValue::from("method"),
-            &JsValue::from(req.method().as_ref()),
-        )
-        .unwrap();
-        request.unchecked_into::<JsRequest>()
-    }
-}
-
-impl From<JsRequest> for Request {
-    fn from(req: JsRequest) -> Self {
-        let method = req.method().parse().expect("valid method");
-        let url = Url::parse(&req.url()).expect("valid url");
-        let body = Uint8Array::new(&req.body()).to_vec();
-        let mut request = Request::new(method, url);
-        for h in req.headers() {
-            let h = h.unchecked_ref::<Array>();
-            let name = h.get(0).as_string().unwrap();
-            let value = h.get(1).as_string().unwrap();
-            request.insert_header(&*name, &*value);
-        }
-        request.set_body(body);
-        request
-    }
-}
-
-impl From<JsResponse> for Response {
-    fn from(res: JsResponse) -> Self {
-        let status = res.status();
-        let _method = res.res_body();
-        let body = Uint8Array::new(&res.res_body()).to_vec();
-        // TODO headers
-        let mut response = Response::new(status);
-        response.set_body(body);
-        response
-    }
+    fn init(this: &TransferedRequest) -> RequestInit;
 }
 
 /// Run
@@ -98,14 +38,18 @@ pub async fn run() -> Result<(), JsValue> {
     // manner or the service worker will respond with a timeout
     let on_msg = Closure::wrap(Box::new(move |e: MessageEvent| {
         let req = e.data();
-        let req = req.unchecked_into::<JsRequest>();
+        let req = req.unchecked_into::<TransferedRequest>();
+        let req = web_sys::Request::new_with_str_and_init(&req.url(), &req.init()).unwrap();
 
         let responses = res_channel.clone();
         let h = handler.clone();
         spawn_local(async move {
-            let res = h.handle_request(req).await.unwrap_or_else(|err| err);
+            let res = h
+                .handle_request(into_request(req).await)
+                .await
+                .unwrap_or_else(|err| err);
             let status = res.status();
-            let res = to_js_response(res).await;
+            let res = into_js_response(res).await;
             if !status.is_success() {
                 log::warn!("{:?}", res);
             }
@@ -125,25 +69,6 @@ fn load_service_worker(url: &str) -> Result<(), JsValue> {
         .service_worker()
         .register(url);
     Ok(())
-}
-
-async fn to_js_response(mut response: Response) -> JsValue {
-    let res = Object::new();
-    Reflect::set(
-        &res,
-        &JsValue::from("status"),
-        &JsValue::from(response.status() as u16),
-    )
-    .unwrap();
-    let headers = response
-        .iter()
-        .map(|(name, val)| Array::of2(&JsValue::from(name.as_str()), &JsValue::from(val.as_str())))
-        .collect::<Array>();
-    Reflect::set(&res, &JsValue::from("headers"), &JsValue::from(&headers)).unwrap();
-    let body = response.body_bytes().await.unwrap_or(vec![]);
-    let body = Uint8Array::from(body.as_slice()).buffer();
-    Reflect::set(&res, &JsValue::from("body"), &JsValue::from(body)).unwrap();
-    res.into()
 }
 
 #[cfg(feature = "console_log")]

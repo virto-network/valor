@@ -1,10 +1,13 @@
-use crate::{JsRequest, JsResponse};
 use async_trait::async_trait;
 use js_sys::{Function, Promise};
 use log::{debug, warn};
-use valor::{Plugin, Request, RequestHandler, Response, StatusCode};
+use valor::{
+    web::{into_js_request, into_response},
+    Plugin, Request, RequestHandler, Response, StatusCode,
+};
 use wasm_bindgen::{prelude::*, JsCast};
 use wasm_bindgen_futures::JsFuture;
+use web_sys::Response as JsResponse;
 
 pub(crate) struct Loader;
 
@@ -41,9 +44,10 @@ struct JsHandler(Function);
 #[async_trait(?Send)]
 impl RequestHandler for JsHandler {
     async fn handle_request(&self, req: Request) -> Response {
-        let promise = self.0.call1(&JsValue::NULL, &JsRequest::from(req)).unwrap();
+        let (req, _body) = into_js_request(req).await;
+        let promise = self.0.call1(&JsValue::NULL, &req).unwrap();
         let response = JsFuture::from(Promise::resolve(&promise)).await.unwrap();
         let response = response.unchecked_into::<JsResponse>();
-        response.into()
+        into_response(response).await
     }
 }

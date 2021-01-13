@@ -31,7 +31,7 @@ fn handle_item_fn(item: ItemFn) -> TokenStream2 {
 
     let plugin_def = quote! {
         #[cfg(target_arch = "wasm32")]
-        use valor::web::{web_sys, wasm_bindgen, wasm_bindgen_futures, JsRequest, JsResponse};
+        use valor::web::{web_sys, wasm_bindgen, wasm_bindgen_futures, into_request, into_js_response};
         #[cfg(target_arch = "wasm32")]
         use wasm_bindgen::prelude::*;
 
@@ -39,8 +39,8 @@ fn handle_item_fn(item: ItemFn) -> TokenStream2 {
         #[cfg(target_arch = "wasm32")]
         #[wasm_bindgen]
         pub async fn handler(req: web_sys::Request) -> web_sys::Response {
-            let res = crate::#name(JsRequest(req).into()).await;
-            JsResponse(res).into()
+            let res = crate::#name(into_request(req).await).await;
+            into_js_response(res).await
         }
 
         /// Handler

@@ -2,22 +2,29 @@ self.addEventListener("install", (e) => e.waitUntil(self.skipWaiting()));
 self.addEventListener("activate", (e) => e.waitUntil(self.clients.claim()));
 self.addEventListener("fetch", (e) => e.respondWith(handleRequest(e.request)));
 
-const reqToTransferable = async (req) => ({
-  url: req.url,
-  method: req.method,
-  headers: [...req.headers],
-  body: await req.arrayBuffer(),
-});
-
 const hasWhitelistedExt = (url) =>
   [".html", ".css", ".ico", ".js", ".wasm"].some((ext) => url.endsWith(ext));
 
-async function handleRequest(request) {
-  const req = await reqToTransferable(request);
-  return hasWhitelistedExt(req.url)
-    ? fetch(request)
-    : broadcastAndWaitResponse(req);
-}
+const toObjLiteral = (iter) =>
+  [...iter].reduce((o, [k, v]) => {
+    o[k] = v;
+    return o;
+  }, {});
+
+const reqToTransferable = async (req) => {
+  const body = await req.arrayBuffer();
+  return {
+    url: req.url,
+    init: {
+      method: req.method,
+      headers: toObjLiteral(req.headers),
+      body,
+    },
+  };
+};
+
+const handleRequest = (req) =>
+  hasWhitelistedExt(req.url) ? fetch(req) : broadcastAndWaitResponse(req);
 
 const TIMEOUT = 3000;
 const timeout = (ms) => new Promise((res) => setTimeout(res, ms));
@@ -28,10 +35,11 @@ const timeoutResponse = (id) =>
   });
 
 async function broadcastAndWaitResponse(req) {
+  req = await reqToTransferable(req);
   const rid = uuidv4();
-  req.headers.push(["x-request-id", rid]);
+  req.headers["x-request-id"] = rid;
 
-  reqChan.postMessage(req);
+  reqChan.postMessage(req, [req.body]);
 
   let resolve;
   const response = new Promise((r) => {
