@@ -1,4 +1,4 @@
-use crate::{res, HandlerResponse, Loader, Method, Plugin, Request, RequestHandler, StatusCode};
+use crate::{Loader, Method, Plugin, Request, RequestHandler, StatusCode};
 use path_tree::PathTree;
 use serde_json as json;
 use std::collections::HashMap;
@@ -59,28 +59,28 @@ impl PluginRegistry {
             Box::new(move |mut req: Request| {
                 let registry = self.clone();
                 let loader = loader.clone();
-                Box::pin(async move {
+                async move {
                     match req.method() {
                         Method::Get => {
                             let plugins = registry.plugin_list();
                             json::to_vec(&plugins)
-                                .map_or(res(StatusCode::InternalServerError, ""), |list| {
-                                    list.into()
-                                })
+                                .map_or(res!(StatusCode::InternalServerError), |list| list.into())
                         }
                         Method::Post => match req.body_json().await {
-                            Ok(plugin) => match loader.load(&plugin) {
+                            Ok(plugin) => match loader.load(&plugin).await {
                                 Ok(handler) => {
                                     registry.register(plugin, handler);
-                                    res(StatusCode::Created, "")
+                                    res!(StatusCode::Created)
                                 }
-                                Err(_) => res(StatusCode::UnprocessableEntity, ""),
+                                Err(_) => {
+                                    res!(StatusCode::UnprocessableEntity, "Can't load plugin")
+                                }
                             },
-                            Err(_) => res(StatusCode::BadRequest, ""),
+                            Err(e) => res!(StatusCode::BadRequest, e.to_string()),
                         },
-                        _ => res(StatusCode::MethodNotAllowed, ""),
+                        _ => res!(StatusCode::MethodNotAllowed),
                     }
-                }) as HandlerResponse
+                }
             }),
         )
     }

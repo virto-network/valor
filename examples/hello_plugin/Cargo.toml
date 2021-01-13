@@ -1,0 +1,14 @@
+[package]
+name = "hello_plugin"
+version = "0.3.4"
+authors = ["Daniel Olano <daniel@olanod.com>"]
+edition = "2018"
+
+[dependencies]
+valor = { path = "../..", package = "valor_lib", features = ["util"] }
+
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+valor = { path = "../..", package = "valor_lib", features = ["util", "web"] }
+
+[lib]
+crate-type = ["cdylib", "lib"]

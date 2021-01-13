@@ -30,10 +30,24 @@ fn handle_item_fn(item: ItemFn) -> TokenStream2 {
     let name = item.sig.ident.clone();
 
     let plugin_def = quote! {
+        #[cfg(target_arch = "wasm32")]
+        use valor::web::{web_sys, wasm_bindgen, wasm_bindgen_futures, into_request, into_js_response};
+        #[cfg(target_arch = "wasm32")]
+        use wasm_bindgen::prelude::*;
+
         /// Handler
+        #[cfg(target_arch = "wasm32")]
+        #[wasm_bindgen]
+        pub async fn handler(req: web_sys::Request) -> web_sys::Response {
+            let res = crate::#name(into_request(req).await).await;
+            into_js_response(res).await
+        }
+
+        /// Handler
+        #[cfg(not(target_arch = "wasm32"))]
         #[no_mangle]
         pub extern "Rust" fn get_request_handler() -> Box<dyn valor::RequestHandler> {
-            Box::new(|req| Box::pin(async { #name(req) }) as valor::HandlerResponse)
+            Box::new(|req| #name(req))
         }
 
         #item

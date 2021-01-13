@@ -1,18 +1,41 @@
 //! Valor
 
-use http_types::Body;
-pub use http_types::{Method, Request, Response, StatusCode, Url};
+pub use async_trait::async_trait;
+pub use http_types::{Method, StatusCode, Url};
 use registry::PluginRegistry;
 use serde::{Deserialize, Serialize};
 use std::fmt;
 use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
-pub use vlugin::vlugin;
+#[cfg(feature = "util")]
+pub use util::*;
+#[cfg(feature = "util")]
+mod util;
+
+// short-hand for creating or modifiying simple responses
+macro_rules! res {
+    () => { res!(http_types::StatusCode::Ok) };
+    ($res:expr) => { res!($res, "") };
+    ($res:expr, { $($h:ident : $v:expr),* $(,)? }) => { res!($res, "", { $($h : $v),* }) };
+    ($res:expr, $b:expr) => { res!($res, $b, {}) };
+    ($res:expr, $b:expr, { $($h:ident : $v:expr),* $(,)? }) => {{
+        let mut res: http_types::Response = $res.into();
+        let body: http_types::Body = $b.into();
+        if body.len().is_some() && !body.is_empty().unwrap() {
+            res.set_body($b);
+        }
+        $(
+            res.insert_header(stringify!($h).replace("_", "-").as_str(), $v);
+        )*
+        res
+    }};
+}
 
 mod registry;
 
-type Result = std::result::Result<Response, Response>;
+pub type Request = http_types::Request;
+pub type Response = http_types::Response;
+type Result = core::result::Result<Response, Response>;
 
 /// Handler is the main entry point for dispatching incoming requests
 /// to registered plugins under a specific URL pattern.
@@ -41,20 +64,19 @@ impl Handler {
         let request = request.into();
         let req_id = request
             .header("x-request-id")
-            .ok_or_else(|| res(StatusCode::BadRequest, "Missing request ID"))?
+            .ok_or_else(|| res!(StatusCode::BadRequest, "Missing request ID"))?
             .as_str()
             .to_owned();
 
         let (plugin, handler) = self
             .0
             .match_plugin_handler(request.url().path())
-            .ok_or_else(|| res(StatusCode::NotFound, ""))?;
+            .ok_or_else(|| res!(StatusCode::NotFound, { x_correlation_id: &req_id }))?;
 
-        let mut response = handler.handle_request(request).await;
-        response.insert_header("x-correlation-id", req_id);
-        response.insert_header("x-valor-plugin", plugin.name());
-
-        Ok(response)
+        Ok(res!(handler.handle_request(request).await, {
+            x_correlation_id: req_id,
+            x_vlugin: plugin.name()
+        }))
     }
 }
 
@@ -68,39 +90,33 @@ impl fmt::Debug for Handler
 where
     for<'a> dyn RequestHandler + 'a: fmt::Debug,
 {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.debug_tuple("Handler").field(&self.0).finish()
     }
 }
 
 /// Loader
-pub trait Loader: Send + Sync + 'static {
+#[async_trait(?Send)]
+pub trait Loader: 'static {
     /// Loads the given `plugin`
-    fn load(&self, plugin: &Plugin) -> std::result::Result<Box<dyn RequestHandler>, ()>;
+    async fn load(&self, plugin: &Plugin) -> std::result::Result<Box<dyn RequestHandler>, ()>;
 }
-
-#[inline]
-pub(crate) fn res(status: StatusCode, msg: impl Into<Body>) -> Response {
-    let mut res = Response::new(status);
-    res.set_body(msg);
-    res
-}
-
-/// Handler response
-pub type HandlerResponse = Pin<Box<dyn Future<Output = Response> + Send>>;
 
 /// Request handler
-pub trait RequestHandler: Send + Sync {
+#[async_trait(?Send)]
+pub trait RequestHandler {
     /// Handles the request
-    fn handle_request(&self, request: Request) -> HandlerResponse;
+    async fn handle_request(&self, request: Request) -> Response;
 }
 
-impl<F> RequestHandler for F
+#[async_trait(?Send)]
+impl<F, R> RequestHandler for F
 where
-    F: Fn(Request) -> HandlerResponse + Send + Sync,
+    F: Fn(Request) -> R,
+    R: Future<Output = Response> + 'static,
 {
-    fn handle_request(&self, request: Request) -> HandlerResponse {
-        self(request)
+    async fn handle_request(&self, request: Request) -> Response {
+        self(request).await
     }
 }
 
@@ -122,8 +138,8 @@ pub enum Plugin {
         /// Path
         path: Option<String>,
     },
-    /// Web worker
-    WebWorker {
+    /// Web script or WASM
+    Web {
         /// Name
         name: String,
         /// Url
@@ -137,7 +153,7 @@ impl Plugin {
             Self::Dummy => "dummy",
             Self::BuiltIn { name } => name,
             Self::Native { name, .. } => name,
-            Self::WebWorker { name, .. } => name,
+            Self::Web { name, .. } => name,
         }
         .into()
     }
@@ -147,7 +163,7 @@ impl Plugin {
             Self::BuiltIn { name } => ["_", name].join(""),
             Self::Dummy => "__dummy__".into(),
             Self::Native { name, .. } => name.into(),
-            Self::WebWorker { name, .. } => name.into(),
+            Self::Web { name, .. } => name.into(),
         }
     }
 }
