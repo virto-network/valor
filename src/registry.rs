@@ -15,8 +15,6 @@ pub(crate) struct PluginRegistry {
 }
 
 impl PluginRegistry {
-    const NAME: &'static str = "plugins";
-
     pub fn new() -> Arc<Self> {
         Arc::new(PluginRegistry {
             plugins: Mutex::new(HashMap::new()),
@@ -35,8 +33,8 @@ impl PluginRegistry {
     pub fn register(&self, plugin: Plugin, handler: Box<dyn RequestHandler>) {
         let mut routes = self.routes.lock().unwrap();
         let mut plugins = self.plugins.lock().unwrap();
-        routes.insert(&plugin.prefix(), plugin.name());
-        plugins.insert(plugin.name(), (plugin, handler.into()));
+        routes.insert(&plugin.prefix(), plugin.name().into());
+        plugins.insert(plugin.name().into(), (plugin, handler.into()));
     }
 
     fn plugin_list(&self) -> Vec<Plugin> {
@@ -48,41 +46,39 @@ impl PluginRegistry {
             .collect()
     }
 
-    pub fn as_handler(
-        self: Arc<Self>,
-        loader: Arc<impl Loader>,
-    ) -> (Plugin, Box<dyn RequestHandler>) {
-        (
-            Plugin::BuiltIn {
-                name: Self::NAME.into(),
-            },
-            Box::new(move |mut req: Request| {
-                let registry = self.clone();
-                let loader = loader.clone();
-                async move {
-                    match req.method() {
-                        Method::Get => {
-                            let plugins = registry.plugin_list();
-                            json::to_vec(&plugins)
-                                .map_or(res!(StatusCode::InternalServerError), |list| list.into())
-                        }
-                        Method::Post => match req.body_json().await {
-                            Ok(plugin) => match loader.load(&plugin).await {
-                                Ok(handler) => {
-                                    registry.register(plugin, handler);
-                                    res!(StatusCode::Created)
-                                }
-                                Err(_) => {
-                                    res!(StatusCode::UnprocessableEntity, "Can't load plugin")
-                                }
+    pub fn as_handler(self: Arc<Self>, loader: Arc<impl Loader>) -> Box<dyn RequestHandler> {
+        Box::new(move |mut req: Request| {
+            let registry = self.clone();
+            let loader = loader.clone();
+            async move {
+                match req.method() {
+                    Method::Get => {
+                        let plugins = registry.plugin_list();
+                        json::to_vec(&plugins).map_or(
+                            res!(StatusCode::InternalServerError),
+                            |list| {
+                                res!(list, {
+                                    content_type: "application/json",
+                                })
                             },
-                            Err(e) => res!(StatusCode::BadRequest, e.to_string()),
-                        },
-                        _ => res!(StatusCode::MethodNotAllowed),
+                        )
                     }
+                    Method::Post => match req.body_json().await {
+                        Ok(plugin) => match loader.load(&plugin).await {
+                            Ok(handler) => {
+                                registry.register(plugin, handler);
+                                res!(StatusCode::Created)
+                            }
+                            Err(_) => {
+                                res!(StatusCode::UnprocessableEntity, "Can't load plugin")
+                            }
+                        },
+                        Err(e) => res!(StatusCode::BadRequest, e.to_string()),
+                    },
+                    _ => res!(StatusCode::MethodNotAllowed),
                 }
-            }),
-        )
+            }
+        })
     }
 }
 

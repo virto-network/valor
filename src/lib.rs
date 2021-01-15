@@ -53,8 +53,12 @@ impl Handler {
     /// Creates a new `Handler` instance
     pub fn new(loader: Arc<impl Loader>) -> Self {
         let registry = PluginRegistry::new();
-        let (plugin, handler) = registry.clone().as_handler(loader);
-        registry.register(plugin, handler);
+        let handler = registry.clone().as_handler(loader);
+        registry.register(BuiltInPlugin::Registry.into(), handler);
+        registry.register(
+            BuiltInPlugin::Health.into(),
+            Box::new(|_| async { res!() }) as Box<dyn RequestHandler>,
+        );
         Handler(registry)
     }
 
@@ -99,7 +103,21 @@ where
 #[async_trait(?Send)]
 pub trait Loader: 'static {
     /// Loads the given `plugin`
-    async fn load(&self, plugin: &Plugin) -> std::result::Result<Box<dyn RequestHandler>, ()>;
+    async fn load(&self, plugin: &Plugin) -> LoadResult;
+}
+
+pub type LoadResult = std::result::Result<Box<dyn RequestHandler>, LoadError>;
+
+pub enum LoadError {
+    NotSupported,
+    NotFound,
+    BadFormat,
+}
+
+impl From<LoadError> for LoadResult {
+    fn from(err: LoadError) -> Self {
+        Err(err)
+    }
 }
 
 /// Request handler
@@ -120,50 +138,74 @@ where
     }
 }
 
-/// Plugin
+/// Plugin information
 #[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Plugin {
     /// Built in
-    BuiltIn {
-        /// Name
-        name: String,
-    },
-    /// Dummy
-    Dummy,
+    BuiltIn(BuiltInPlugin),
     /// Native
     Native {
         /// Name
         name: String,
         /// Path
+        #[serde(skip_serializing_if = "Option::is_none")]
         path: Option<String>,
     },
     /// Web script or WASM
     Web {
         /// Name
         name: String,
-        /// Url
+        /// Url of the JS script
         url: Url,
     },
 }
 
 impl Plugin {
-    fn name(&self) -> String {
+    fn name(&self) -> &str {
         match self {
-            Self::Dummy => "dummy",
-            Self::BuiltIn { name } => name,
+            Self::BuiltIn(p) => p.name(),
             Self::Native { name, .. } => name,
             Self::Web { name, .. } => name,
         }
         .into()
     }
 
-    fn prefix(&self) -> String {
+    fn prefix(&self) -> &str {
         match self {
-            Self::BuiltIn { name } => ["_", name].join(""),
-            Self::Dummy => "__dummy__".into(),
-            Self::Native { name, .. } => name.into(),
-            Self::Web { name, .. } => name.into(),
+            Self::BuiltIn(p) => p.prefix(),
+            Self::Native { name, .. } => name,
+            Self::Web { name, .. } => name,
+        }
+    }
+}
+
+impl From<BuiltInPlugin> for Plugin {
+    fn from(p: BuiltInPlugin) -> Self {
+        Self::BuiltIn(p)
+    }
+}
+
+/// Plugins included with the runtime
+#[derive(Debug, Clone, PartialEq, Hash, Eq, Serialize, Deserialize)]
+#[serde(tag = "name", rename_all = "snake_case")]
+pub enum BuiltInPlugin {
+    Registry,
+    Health,
+}
+
+impl BuiltInPlugin {
+    fn name(&self) -> &str {
+        match self {
+            Self::Registry => "plugin_registry",
+            Self::Health => "health",
+        }
+    }
+
+    fn prefix(&self) -> &str {
+        match self {
+            Self::Registry => "_plugins",
+            Self::Health => "_health",
         }
     }
 }
