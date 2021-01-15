@@ -151,6 +151,9 @@ pub enum Plugin {
         /// Path
         #[serde(skip_serializing_if = "Option::is_none")]
         path: Option<String>,
+        /// Url prefix where the plugin is mounted, defaults to the name
+        #[serde(skip_serializing_if = "Option::is_none")]
+        prefix: Option<String>,
     },
     /// Web script or WASM
     Web {
@@ -158,6 +161,9 @@ pub enum Plugin {
         name: String,
         /// Url of the JS script
         url: Url,
+        /// Url prefix where the plugin is mounted, defaults to the name
+        #[serde(skip_serializing_if = "Option::is_none")]
+        prefix: Option<String>,
     },
 }
 
@@ -174,8 +180,8 @@ impl Plugin {
     fn prefix(&self) -> &str {
         match self {
             Self::BuiltIn(p) => p.prefix(),
-            Self::Native { name, .. } => name,
-            Self::Web { name, .. } => name,
+            Self::Native { name, prefix, .. } => prefix.as_ref().unwrap_or(name),
+            Self::Web { name, prefix, .. } => prefix.as_ref().unwrap_or(name),
         }
     }
 }

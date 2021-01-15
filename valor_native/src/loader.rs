@@ -9,7 +9,7 @@ pub(crate) struct DynLoader;
 impl Loader for DynLoader {
     async fn load(&self, plugin: &Plugin) -> LoadResult {
         match plugin {
-            Plugin::Native { name, path } => {
+            Plugin::Native { name, path, .. } => {
                 let path = path.as_ref().unwrap_or(name);
                 debug!("loading native plugin {}", path);
                 let lib = Library::new(path).map_err(|e| {

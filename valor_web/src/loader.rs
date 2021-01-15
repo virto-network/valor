@@ -23,7 +23,7 @@ extern "C" {
 impl valor::Loader for Loader {
     async fn load(&self, plugin: &Plugin) -> valor::LoadResult {
         match plugin {
-            Plugin::Web { url, name } => {
+            Plugin::Web { url, name, .. } => {
                 debug!("loading plugin {} from {}", name, url);
                 let handler = load_handler(url.as_str()).await.map_err(|_| {
                     warn!("failed loading {}", name);
