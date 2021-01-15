@@ -12,21 +12,23 @@ const toObjLiteral = (iter) =>
   }, {});
 
 const reqToTransferable = async (req) => {
-  const body = await req.arrayBuffer();
-  return {
+  let tReq = {
     url: req.url,
     init: {
       method: req.method,
       headers: toObjLiteral(req.headers),
-      body,
     },
   };
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    tReq.body = await req.arrayBuffer();
+  }
+  return tReq;
 };
 
 const handleRequest = (req) =>
   hasWhitelistedExt(req.url) ? fetch(req) : broadcastAndWaitResponse(req);
 
-const TIMEOUT = 3000;
+const TIMEOUT = 5000;
 const timeout = (ms) => new Promise((res) => setTimeout(res, ms));
 const timeoutResponse = (id) =>
   timeout(TIMEOUT).then(() => {
@@ -37,9 +39,9 @@ const timeoutResponse = (id) =>
 async function broadcastAndWaitResponse(req) {
   req = await reqToTransferable(req);
   const rid = uuidv4();
-  req.headers["x-request-id"] = rid;
+  req.init.headers["x-request-id"] = rid;
 
-  reqChan.postMessage(req, [req.body]);
+  reqChan.postMessage(req);
 
   let resolve;
   const response = new Promise((r) => {
@@ -55,19 +57,20 @@ const resChan = new BroadcastChannel("res_channel");
 const pendingRequests = new Map();
 
 resChan.onmessage = ({ data = {} }) => {
-  let { status, headers, body } = {
-    ...{ status: 200, headers: {}, body: null },
-    ...data,
-  };
-
-  headers = new Headers(headers);
-  const id = headers.get("x-correlation-id");
-  if (!id) return;
+  const { body, init } = data;
+  const id = init.headers["x-correlation-id"];
+  if (!id) {
+    console.debug("request without id");
+    return;
+  }
 
   const resolve = pendingRequests.get(id);
-  if (!resolve) return;
+  if (!resolve) {
+    console.debug(`no matching request for ${id}`);
+    return;
+  }
 
-  resolve(new Response(body, { status, headers }));
+  resolve(new Response(body, init));
 };
 
 function uuidv4() {

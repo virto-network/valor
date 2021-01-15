@@ -2,10 +2,7 @@
 use loader::Loader;
 use std::rc::Rc;
 use std::sync::Arc;
-use valor::{
-    web::{into_js_response, into_request},
-    Handler,
-};
+use valor::{web::into_request, Handler};
 use wasm_bindgen::{prelude::*, JsCast};
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{window, BroadcastChannel, MessageEvent, RequestInit};
@@ -14,11 +11,11 @@ mod loader;
 
 #[wasm_bindgen]
 extern "C" {
-    type TransferedRequest;
+    type TransferredRequest;
     #[wasm_bindgen(method, getter)]
-    fn url(this: &TransferedRequest) -> String;
+    fn url(this: &TransferredRequest) -> String;
     #[wasm_bindgen(method, getter)]
-    fn init(this: &TransferedRequest) -> RequestInit;
+    fn init(this: &TransferredRequest) -> RequestInit;
 }
 
 /// Run
@@ -38,8 +35,10 @@ pub async fn run() -> Result<(), JsValue> {
     // manner or the service worker will respond with a timeout
     let on_msg = Closure::wrap(Box::new(move |e: MessageEvent| {
         let req = e.data();
-        let req = req.unchecked_into::<TransferedRequest>();
-        let req = web_sys::Request::new_with_str_and_init(&req.url(), &req.init()).unwrap();
+        let req = req.unchecked_ref::<TransferredRequest>();
+        let req = web_sys::Request::new_with_str_and_init(&req.url(), &req.init())
+            .expect("valid request");
+        log::debug!("Got req: {:?}", req);
 
         let responses = res_channel.clone();
         let h = handler.clone();
@@ -49,10 +48,11 @@ pub async fn run() -> Result<(), JsValue> {
                 .await
                 .unwrap_or_else(|err| err);
             let status = res.status();
-            let res = into_js_response(res).await;
             if !status.is_success() {
                 log::warn!("{:?}", res);
             }
+            let res = transferable_response(res).await;
+            log::debug!("posting res: {:?}", res);
             responses.post_message(&res).expect("response");
         });
     }) as Box<dyn Fn(MessageEvent)>);
@@ -60,6 +60,28 @@ pub async fn run() -> Result<(), JsValue> {
     on_msg.forget();
 
     Ok(())
+}
+
+async fn transferable_response(mut res: valor::Response) -> JsValue {
+    let body = res.body_bytes().await.unwrap_or_default();
+    let body = js_sys::Uint8Array::from(body.as_slice()).buffer();
+    let headers = js_sys::Object::new();
+    for (name, value) in res.iter() {
+        js_sys::Reflect::set(
+            &headers,
+            &JsValue::from(name.as_str()),
+            &JsValue::from(value.as_str()),
+        )
+        .unwrap();
+    }
+    let status = res.status() as u16;
+    let init = js_sys::Object::new();
+    js_sys::Reflect::set(&init, &JsValue::from("status"), &status.into()).unwrap();
+    js_sys::Reflect::set(&init, &JsValue::from("headers"), &headers.into()).unwrap();
+    let res = js_sys::Object::new();
+    js_sys::Reflect::set(&res, &JsValue::from("body"), &body.into()).unwrap();
+    js_sys::Reflect::set(&res, &JsValue::from("init"), &init.into()).unwrap();
+    res.into()
 }
 
 fn load_service_worker(url: &str) -> Result<(), JsValue> {
