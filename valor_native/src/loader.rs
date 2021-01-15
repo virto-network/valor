@@ -7,7 +7,9 @@ pub(crate) struct DynLoader;
 
 #[async_trait(?Send)]
 impl Loader for DynLoader {
-    async fn load(&self, plugin: &Plugin) -> LoadResult {
+    type Handler = PluginContainer;
+
+    async fn load(&self, plugin: &Plugin) -> LoadResult<Self> {
         match plugin {
             Plugin::Native { name, path, .. } => {
                 let path = path.as_ref().unwrap_or(name);
@@ -23,14 +25,14 @@ impl Loader for DynLoader {
 
                 let handler = get_request_handler();
 
-                Ok(Box::new(PluginContainer { handler, _lib: lib }))
+                Ok(PluginContainer { handler, _lib: lib })
             }
-            _ => LoadError::NotSupported.into(),
+            _ => Err(LoadError::NotSupported),
         }
     }
 }
 
-struct PluginContainer {
+pub(crate) struct PluginContainer {
     handler: Box<dyn RequestHandler>,
     _lib: Library,
 }

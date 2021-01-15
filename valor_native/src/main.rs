@@ -7,11 +7,12 @@ use async_std::{
 };
 use kv_log_macro::{error, info};
 use loader::DynLoader;
-use std::sync::Arc;
 use std::time::Instant;
 use uuid::Uuid;
 
 mod loader;
+
+type Handler = valor::Handler<DynLoader>;
 
 #[async_std::main]
 async fn main() -> http_types::Result<()> {
@@ -21,7 +22,7 @@ async fn main() -> http_types::Result<()> {
     let addr = format!("http://{}", listener.local_addr()?);
     info!("listening on {}", addr);
 
-    let handler = valor::Handler::new(Arc::new(DynLoader));
+    let handler = Handler::new(DynLoader).with_registry().with_health();
 
     let mut incoming = listener.incoming();
     while let Some(stream) = incoming.next().await {
@@ -38,9 +39,9 @@ async fn main() -> http_types::Result<()> {
 
 const REQ_ID_HEADER: &str = "x-request-id";
 
-async fn accept(stream: TcpStream, handler: valor::Handler) -> http_types::Result<()> {
+async fn accept(stream: TcpStream, handler: Handler) -> http_types::Result<()> {
     async_h1::accept(stream.clone(), |mut req| async {
-        let handler = handler.clone();
+        //let handler = handler.clone();
         let instant = Instant::now();
         if req.header(REQ_ID_HEADER).is_none() {
             let id = Uuid::new_v4().to_string();

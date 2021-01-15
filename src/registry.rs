@@ -1,95 +1,81 @@
-use crate::{Loader, Method, Plugin, Request, RequestHandler, StatusCode};
+use crate::{Loader, Method, Plugin, Request, RequestHandler, Response, StatusCode};
 use path_tree::PathTree;
 use serde_json as json;
 use std::collections::HashMap;
-use std::fmt;
-use std::iter::Iterator;
-use std::sync::{Arc, Mutex};
+use std::{cell::RefCell, rc::Rc};
 
-type PluginHandler = (Plugin, Arc<dyn RequestHandler>);
+type PluginHandler = (Plugin, Rc<dyn RequestHandler>);
 
 /// Plugin to keep track of registered plugins
 pub(crate) struct PluginRegistry {
-    plugins: Mutex<HashMap<String, PluginHandler>>,
-    routes: Mutex<PathTree<String>>,
+    plugins: HashMap<String, PluginHandler>,
+    routes: PathTree<String>,
 }
 
 impl PluginRegistry {
-    pub fn new() -> Arc<Self> {
-        Arc::new(PluginRegistry {
-            plugins: Mutex::new(HashMap::new()),
-            routes: Mutex::new(PathTree::new()),
-        })
+    pub fn new() -> Self {
+        PluginRegistry {
+            plugins: HashMap::new(),
+            routes: PathTree::new(),
+        }
     }
 
     pub fn match_plugin_handler(&self, path: &str) -> Option<PluginHandler> {
-        let routes = self.routes.lock().unwrap();
-        let plugins = self.plugins.lock().unwrap();
-        let (name, _) = routes.find(path)?;
-        let (plugin, handler) = plugins.get(name)?;
+        let (name, _) = self.routes.find(path)?;
+        let (plugin, handler) = self.plugins.get(name)?;
         Some((plugin.clone(), handler.clone()))
     }
 
-    pub fn register(&self, plugin: Plugin, handler: Box<dyn RequestHandler>) {
-        let mut routes = self.routes.lock().unwrap();
-        let mut plugins = self.plugins.lock().unwrap();
-        routes.insert(&plugin.prefix(), plugin.name().into());
-        plugins.insert(plugin.name().into(), (plugin, handler.into()));
+    pub fn register(&mut self, plugin: Plugin, handler: Box<dyn RequestHandler>) {
+        self.routes.insert(&plugin.prefix(), plugin.name().into());
+        self.plugins
+            .insert(plugin.name().into(), (plugin, handler.into()));
     }
 
     fn plugin_list(&self) -> Vec<Plugin> {
-        self.plugins
-            .lock()
-            .unwrap()
-            .values()
-            .map(|(p, _)| p.clone())
-            .collect()
+        self.plugins.values().map(|(p, _)| p.clone()).collect()
     }
 
-    pub fn as_handler(self: Arc<Self>, loader: Arc<impl Loader>) -> Box<dyn RequestHandler> {
-        Box::new(move |mut req: Request| {
-            let registry = self.clone();
-            let loader = loader.clone();
-            async move {
-                match req.method() {
-                    Method::Get => {
-                        let plugins = registry.plugin_list();
-                        json::to_vec(&plugins).map_or(
-                            res!(StatusCode::InternalServerError),
-                            |list| {
-                                res!(list, {
-                                    content_type: "application/json",
-                                })
-                            },
-                        )
-                    }
-                    Method::Post => match req.body_json().await {
-                        Ok(plugin) => match loader.load(&plugin).await {
-                            Ok(handler) => {
-                                registry.register(plugin, handler);
-                                res!(StatusCode::Created)
-                            }
-                            Err(_) => {
-                                res!(StatusCode::UnprocessableEntity, "Can't load plugin")
-                            }
-                        },
-                        Err(e) => res!(StatusCode::BadRequest, e.to_string()),
-                    },
-                    _ => res!(StatusCode::MethodNotAllowed),
-                }
-            }
-        })
+    pub fn as_handler<L: Loader>(
+        registry: Rc<RefCell<Self>>,
+        loader: Rc<L>,
+    ) -> impl RequestHandler {
+        RegistryHandler { registry, loader }
     }
 }
 
-impl fmt::Debug for PluginRegistry
-where
-    for<'a> dyn RequestHandler + 'a: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PluginRegistry")
-            .field("plugins", &self.plugins)
-            .field("routes", &self.routes)
-            .finish()
+struct RegistryHandler<L> {
+    registry: Rc<RefCell<PluginRegistry>>,
+    loader: Rc<L>,
+}
+
+#[async_trait::async_trait(?Send)]
+impl<L: Loader> RequestHandler for RegistryHandler<L> {
+    async fn handle_request(&self, mut request: Request) -> Response {
+        match request.method() {
+            Method::Get => {
+                let plugins = self.registry.borrow().plugin_list();
+                json::to_vec(&plugins).map_or(res!(StatusCode::InternalServerError), |list| {
+                    res!(list, {
+                        content_type: "application/json",
+                    })
+                })
+            }
+            Method::Post => match request.body_json().await {
+                Ok(plugin) => match self.loader.load(&plugin).await {
+                    Ok(handler) => {
+                        self.registry
+                            .borrow_mut()
+                            .register(plugin, Box::new(handler));
+                        res!(StatusCode::Created)
+                    }
+                    Err(_) => {
+                        res!(StatusCode::UnprocessableEntity, "Can't load plugin")
+                    }
+                },
+                Err(e) => res!(StatusCode::BadRequest, e.to_string()),
+            },
+            _ => res!(StatusCode::MethodNotAllowed),
+        }
     }
 }

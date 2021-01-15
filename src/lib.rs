@@ -1,17 +1,5 @@
 //! Valor
 
-pub use async_trait::async_trait;
-pub use http_types::{Method, StatusCode, Url};
-use registry::PluginRegistry;
-use serde::{Deserialize, Serialize};
-use std::fmt;
-use std::future::Future;
-use std::sync::Arc;
-#[cfg(feature = "util")]
-pub use util::*;
-#[cfg(feature = "util")]
-mod util;
-
 // short-hand for creating or modifiying simple responses
 macro_rules! res {
     () => { res!(http_types::StatusCode::Ok) };
@@ -32,6 +20,17 @@ macro_rules! res {
 }
 
 mod registry;
+#[cfg(feature = "util")]
+mod util;
+
+pub use async_trait::async_trait;
+pub use http_types::{Method, StatusCode, Url};
+use registry::PluginRegistry;
+use serde::{Deserialize, Serialize};
+use std::future::Future;
+use std::{cell::RefCell, rc::Rc};
+#[cfg(feature = "util")]
+pub use util::*;
 
 pub type Request = http_types::Request;
 pub type Response = http_types::Response;
@@ -47,19 +46,46 @@ type Result = core::result::Result<Response, Response>;
 /// let res = handler.handle_request(request).await?;
 /// assert_eq(res, StatusCode::Ok);
 /// ```
-pub struct Handler(Arc<PluginRegistry>);
+pub struct Handler<L> {
+    registry: Rc<RefCell<PluginRegistry>>,
+    loader: Rc<L>,
+}
 
-impl Handler {
+impl<L: Loader + 'static> Handler<L> {
     /// Creates a new `Handler` instance
-    pub fn new(loader: Arc<impl Loader>) -> Self {
-        let registry = PluginRegistry::new();
-        let handler = registry.clone().as_handler(loader);
-        registry.register(BuiltInPlugin::Registry.into(), handler);
-        registry.register(
-            BuiltInPlugin::Health.into(),
-            Box::new(|_| async { res!() }) as Box<dyn RequestHandler>,
+    pub fn new(loader: L) -> Self {
+        Handler {
+            registry: Rc::new(RefCell::new(PluginRegistry::new())),
+            loader: Rc::new(loader),
+        }
+    }
+
+    pub fn with_plugin<H>(&self, plugin: impl Into<Plugin>, handler: H)
+    where
+        H: RequestHandler + 'static,
+    {
+        self.registry
+            .borrow_mut()
+            .register(plugin.into(), Box::new(handler));
+    }
+
+    pub async fn load_plugin(&self, plugin: Plugin) -> core::result::Result<(), LoadError> {
+        let handler = self.loader.load(&plugin).await?;
+        self.with_plugin(plugin, handler);
+        Ok(())
+    }
+
+    pub fn with_registry(self) -> Self {
+        self.with_plugin(
+            BuiltInPlugin::Registry,
+            PluginRegistry::as_handler(self.registry.clone(), self.loader.clone()),
         );
-        Handler(registry)
+        self
+    }
+
+    pub fn with_health(self) -> Self {
+        self.with_plugin(BuiltInPlugin::Health, |_| async { res!() });
+        self
     }
 
     /// Handle the incoming request and send back a response
@@ -73,7 +99,8 @@ impl Handler {
             .to_owned();
 
         let (plugin, handler) = self
-            .0
+            .registry
+            .borrow()
             .match_plugin_handler(request.url().path())
             .ok_or_else(|| res!(StatusCode::NotFound, { x_correlation_id: &req_id }))?;
 
@@ -84,40 +111,29 @@ impl Handler {
     }
 }
 
-impl Clone for Handler {
+impl<L> Clone for Handler<L> {
     fn clone(&self) -> Self {
-        Handler(self.0.clone())
-    }
-}
-
-impl fmt::Debug for Handler
-where
-    for<'a> dyn RequestHandler + 'a: fmt::Debug,
-{
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        f.debug_tuple("Handler").field(&self.0).finish()
+        Handler {
+            registry: self.registry.clone(),
+            loader: self.loader.clone(),
+        }
     }
 }
 
 /// Loader
 #[async_trait(?Send)]
 pub trait Loader: 'static {
+    type Handler: RequestHandler;
     /// Loads the given `plugin`
-    async fn load(&self, plugin: &Plugin) -> LoadResult;
+    async fn load(&self, plugin: &Plugin) -> LoadResult<Self>;
 }
 
-pub type LoadResult = std::result::Result<Box<dyn RequestHandler>, LoadError>;
+pub type LoadResult<L> = core::result::Result<<L as Loader>::Handler, LoadError>;
 
 pub enum LoadError {
     NotSupported,
     NotFound,
     BadFormat,
-}
-
-impl From<LoadError> for LoadResult {
-    fn from(err: LoadError) -> Self {
-        Err(err)
-    }
 }
 
 /// Request handler
