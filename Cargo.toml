@@ -2,7 +2,7 @@
 name = "valor_core"
 description = "Plugin runtime as HTTP API running in server and browser"
 license = "GPL-3.0-or-later"
-version = "0.4.0-alpha.2"
+version = "0.4.0-alpha.3"
 authors = ["Daniel Olano <daniel@olanod.com>"]
 edition = "2018"
 repository = "https://github.com/valibre-org/valor"

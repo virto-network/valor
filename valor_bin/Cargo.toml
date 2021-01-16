@@ -5,7 +5,7 @@ description = "Valor native runtime to run on the server side"
 edition = "2018"
 license = "GPL-3.0-or-later"
 repository = "https://github.com/valibre-org/valor"
-version = "0.4.0-alpha.2"
+version = "0.4.0-alpha.3"
 
 [dependencies]
 async-h1 = "2.1.4"
