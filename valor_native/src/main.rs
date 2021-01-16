@@ -5,24 +5,54 @@ use async_std::{
     net::{TcpListener, TcpStream},
     stream::StreamExt,
 };
-use kv_log_macro::{error, info};
+use kv_log_macro::{error, info, warn};
 use loader::DynLoader;
+use std::fs::File;
+use std::path::PathBuf;
 use std::time::Instant;
+use structopt::StructOpt;
 use uuid::Uuid;
 
 mod loader;
 
 type Handler = valor::Handler<DynLoader>;
 
+#[derive(StructOpt, Debug)]
+#[structopt(name = "valor")]
+struct Opt {
+    /// Enables the plugin registry endpoint
+    #[structopt(short)]
+    with_registry: bool,
+
+    /// Json file with the list of plugins to load at startup
+    #[structopt(short)]
+    plugin_file: Option<PathBuf>,
+}
+
 #[async_std::main]
 async fn main() -> http_types::Result<()> {
     femme::with_level(femme::LevelFilter::Debug);
+    let opt = Opt::from_args();
 
     let listener = TcpListener::bind(("0.0.0.0", 8080)).await?;
     let addr = format!("http://{}", listener.local_addr()?);
     info!("listening on {}", addr);
 
-    let handler = Handler::new(DynLoader).with_registry().with_health();
+    let mut handler = Handler::new(DynLoader).with_registry();
+    if opt.with_registry {
+        handler = handler.with_registry()
+    };
+
+    if opt.plugin_file.is_some() {
+        let file = File::open(opt.plugin_file.unwrap()).expect("Plugin file");
+        let plugins: Vec<valor::Plugin> = serde_json::from_reader(file).expect("Plugin list");
+        for p in plugins {
+            handler
+                .load_plugin(p)
+                .await
+                .unwrap_or_else(|err| warn!("{:?}", err));
+        }
+    }
 
     let mut incoming = listener.incoming();
     while let Some(stream) = incoming.next().await {
@@ -41,7 +71,6 @@ const REQ_ID_HEADER: &str = "x-request-id";
 
 async fn accept(stream: TcpStream, handler: Handler) -> http_types::Result<()> {
     async_h1::accept(stream.clone(), |mut req| async {
-        //let handler = handler.clone();
         let instant = Instant::now();
         if req.header(REQ_ID_HEADER).is_none() {
             let id = Uuid::new_v4().to_string();

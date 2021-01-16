@@ -130,6 +130,7 @@ pub trait Loader: 'static {
 
 pub type LoadResult<L> = core::result::Result<<L as Loader>::Handler, LoadError>;
 
+#[derive(Debug)]
 pub enum LoadError {
     NotSupported,
     NotFound,
