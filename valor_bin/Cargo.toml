@@ -9,7 +9,7 @@ version = "0.4.0-alpha.3"
 
 [dependencies]
 async-h1 = "2.1.4"
-async-std = { version = "1.7.0", features = ["attributes"] }
+async-std = { version = "1.7.0", features = ["attributes", "unstable"] }
 async-trait = "0.1.42"
 femme = "2.1.1"
 http-types = "2.8.0"
