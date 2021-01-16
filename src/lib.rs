@@ -106,7 +106,7 @@ impl<L: Loader + 'static> Handler<L> {
 
         Ok(res!(handler.handle_request(request).await, {
             x_correlation_id: req_id,
-            x_vlugin: plugin.name()
+            x_valor_plugin: plugin.name()
         }))
     }
 }

@@ -1,5 +1,5 @@
 [package]
-name = "valor_vlugin"
+name = "valor_plugin"
 authors = ["Daniel Olano <daniel@olanod.com>"]
 description = "proc-macro to conveniently declare valor plugins"
 edition = "2018"

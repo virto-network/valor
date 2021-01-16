@@ -1,4 +1,4 @@
-pub use valor_vlugin::vlugin;
+pub use valor_plugin::vlugin;
 
 #[cfg(all(feature = "web", target_arch = "wasm32"))]
 pub mod web {
