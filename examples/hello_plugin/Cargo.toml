@@ -6,10 +6,10 @@ edition = "2018"
 publish = false
 
 [dependencies]
-valor = { path = "../..", package = "valor_lib", features = ["util"] }
+valor = { path = "../..", package = "valor_core", features = ["util"] }
 
 [target.'cfg(target_arch = "wasm32")'.dependencies]
-valor = { path = "../..", package = "valor_lib", features = ["util", "web"] }
+valor = { path = "../..", package = "valor_core", features = ["util", "web"] }
 
 [lib]
 crate-type = ["cdylib", "lib"]

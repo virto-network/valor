@@ -1,5 +1,5 @@
 [package]
-name = "valor_lib"
+name = "valor_core"
 description = "Plugin runtime as HTTP API running in server and browser"
 license = "GPL-3.0-or-later"
 version = "0.4.0-alpha.2"
@@ -42,9 +42,9 @@ web = [
 ]
 
 [workspace]
-default-members = ["valor_native"]
+default-members = ["valor_bin"]
 members = [
-	"valor_native",
+	"valor_bin",
 	"valor_web",
 	"valor_plugin",
 
