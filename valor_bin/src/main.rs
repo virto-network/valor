@@ -38,7 +38,7 @@ async fn main() -> http_types::Result<()> {
     let addr = format!("http://{}", listener.local_addr()?);
     info!("listening on {}", addr);
 
-    let mut handler = Handler::new(DynLoader).with_registry();
+    let mut handler = Handler::new(DynLoader).with_health();
     if opt.with_registry {
         handler = handler.with_registry()
     };
