@@ -1,6 +1,6 @@
 [package]
 name = "valor_web"
-version = "0.4.1-alpha.0"
+version = "0.4.2-alpha.0"
 authors = ["Daniel Olano <daniel@olanod.com>"]
 edition = "2018"
 
