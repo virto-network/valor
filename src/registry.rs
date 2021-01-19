@@ -27,7 +27,8 @@ impl PluginRegistry {
     }
 
     pub fn register(&mut self, plugin: Plugin, handler: Box<dyn RequestHandler>) {
-        self.routes.insert(&plugin.prefix(), plugin.name().into());
+        let prefix = format!("/{}/*", plugin.prefix());
+        self.routes.insert(&prefix, plugin.name().into());
         self.plugins
             .insert(plugin.name().into(), (plugin, handler.into()));
     }
