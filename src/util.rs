@@ -19,7 +19,7 @@ pub mod web {
 
     // NOTE we might be able to remove this some day
     // https://github.com/http-rs/http-types/issues/317
-    pub async fn into_js_request(mut req: Request) -> (JsRequest, Pin<Vec<u8>>) {
+    pub async fn into_js_request(mut req: Request) -> (JsRequest, Pin<alloc::vec::Vec<u8>>) {
         let mut init = RequestInit::new();
         init.method(req.method().as_ref());
 

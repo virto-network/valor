@@ -18,7 +18,7 @@ native: runtime_native plugins_native
 
 web: runtime_web plugins_web
 
-$(OUT_DIR)/valor: $(OUT_DIR)/valor_native ; @mv $< $@
+$(OUT_DIR)/valor: $(OUT_DIR)/valor_bin ; @mv $< $@
 runtime_native: $(OUT_DIR)/valor
 
 $(OUT_DIR)/valor.js: $(OUT_DIR)/valor_web.js

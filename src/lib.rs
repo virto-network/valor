@@ -6,6 +6,12 @@
 //! - Use `valor_web` as a script imported from the main document or a worker
 //! in your web application to have a local API powered by a service worker.
 
+#![cfg_attr(not(test), no_std)]
+
+#[macro_use]
+extern crate core;
+extern crate alloc;
+
 // short-hand for creating or modifiying simple responses
 macro_rules! res {
     () => { res!(http_types::StatusCode::Ok) };
@@ -29,12 +35,13 @@ mod registry;
 #[cfg(feature = "util")]
 mod util;
 
+use alloc::{borrow::ToOwned, boxed::Box, rc::Rc, string::String};
 pub use async_trait::async_trait;
+use core::{cell::RefCell, future::Future};
 pub use http_types::{Method, StatusCode, Url};
 use registry::PluginRegistry;
+#[cfg(feature = "_serde")]
 use serde::{Deserialize, Serialize};
-use std::future::Future;
-use std::{cell::RefCell, rc::Rc};
 #[cfg(feature = "util")]
 pub use util::*;
 
@@ -76,7 +83,7 @@ impl<L: Loader + 'static> Handler<L> {
         }
     }
 
-    /// Using the configured loader, loads a plugin to
+    /// Uses the configured loader to load and register the provided plugin
     pub async fn load_plugin(&self, plugin: Plugin) -> core::result::Result<(), LoadError> {
         let handler = self.loader.load(&plugin).await?;
         self.register_plugin(plugin, handler);
@@ -84,13 +91,14 @@ impl<L: Loader + 'static> Handler<L> {
     }
 
     /// Expose the plugin registry as an endpoint on `_plugins` to add more plugins dynamically
+    #[cfg(feature = "_serde")]
     pub fn with_registry(self) -> Self {
         self.register_plugin(
             Plugin::Static {
                 name: "registry".into(),
                 prefix: Some("_plugins".into()),
             },
-            PluginRegistry::as_handler(self.registry.clone(), self.loader.clone()),
+            PluginRegistry::get_handler(self.registry.clone(), self.loader.clone()),
         );
         self
     }
@@ -128,7 +136,8 @@ impl<L: Loader + 'static> Handler<L> {
             .match_plugin_handler(request.url().path())
             .ok_or_else(|| res!(StatusCode::NotFound, { x_correlation_id: &req_id }))?;
 
-        let without_prefix = request.url()
+        let without_prefix = request
+            .url()
             .path()
             .trim_start_matches('/')
             .strip_prefix(plugin.prefix())
@@ -217,8 +226,12 @@ impl RequestHandler for () {
 }
 
 /// Plugin information
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(tag = "type", rename_all = "snake_case")]
+#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[cfg_attr(
+    feature = "_serde",
+    derive(Serialize, Deserialize),
+    serde(tag = "type", rename_all = "snake_case")
+)]
 pub enum Plugin {
     /// Plugin that comes with the runtime
     Static {
@@ -230,10 +243,10 @@ pub enum Plugin {
         /// Name
         name: String,
         /// Path
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "_serde", serde(skip_serializing_if = "Option::is_none"))]
         path: Option<String>,
         /// Url prefix where the plugin is mounted, defaults to the name
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "_serde", serde(skip_serializing_if = "Option::is_none"))]
         prefix: Option<String>,
     },
     /// Web script or WASM
@@ -243,12 +256,13 @@ pub enum Plugin {
         /// Url of the JS script
         url: Url,
         /// Url prefix where the plugin is mounted, defaults to the name
-        #[serde(skip_serializing_if = "Option::is_none")]
+        #[cfg_attr(feature = "_serde", serde(skip_serializing_if = "Option::is_none"))]
         prefix: Option<String>,
     },
 }
 
 impl Plugin {
+    #[inline]
     fn name(&self) -> &str {
         &match self {
             Self::Static { name, .. } => name,
@@ -257,6 +271,7 @@ impl Plugin {
         }
     }
 
+    #[inline]
     fn prefix(&self) -> &str {
         match self {
             Self::Static { prefix, .. } => prefix,
@@ -265,7 +280,7 @@ impl Plugin {
         }
         .as_ref()
         .map(|p| p.as_str())
-        .unwrap_or(self.name())
+        .unwrap_or_else(|| self.name())
         .trim_matches(&['/', ' '][..])
     }
 }
@@ -274,7 +289,7 @@ impl From<&str> for Plugin {
     fn from(name: &str) -> Self {
         Plugin::Static {
             name: name.into(),
-            prefix: Some(format!("_{}", name)),
+            prefix: Some("_".to_owned() + name),
         }
     }
 }
