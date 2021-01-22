@@ -154,9 +154,7 @@ impl<L: Loader + 'static> Handler<L> {
     where
         H: RequestHandler + 'static,
     {
-        self.registry
-            .borrow_mut()
-            .register(plugin.into(), Box::new(handler));
+        self.registry.borrow_mut().register(plugin.into(), handler);
     }
 }
 
@@ -226,7 +224,7 @@ impl RequestHandler for () {
 }
 
 /// Plugin information
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(
     feature = "_serde",
     derive(Serialize, Deserialize),

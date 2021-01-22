@@ -1,5 +1,5 @@
 use crate::{Plugin, RequestHandler};
-use alloc::{borrow::ToOwned, boxed::Box, rc::Rc, string::String};
+use alloc::{borrow::ToOwned, rc::Rc, string::String};
 use hashbrown::HashMap;
 use path_tree::PathTree;
 
@@ -25,11 +25,17 @@ impl PluginRegistry {
         Some((plugin.clone(), handler.clone()))
     }
 
-    pub fn register(&mut self, plugin: Plugin, handler: Box<dyn RequestHandler>) {
-        let prefix = "/".to_owned() + plugin.prefix() + "/*";
-        self.routes.insert(&prefix, plugin.name().into());
-        self.plugins
-            .insert(plugin.name().into(), (plugin, handler.into()));
+    pub fn register<H>(&mut self, plugin: impl Into<Plugin>, handler: H)
+    where
+        H: RequestHandler + 'static,
+    {
+        let plugin = plugin.into();
+        let prefix = "/".to_owned() + plugin.prefix();
+        let name = plugin.name().to_owned();
+
+        self.routes.insert(&prefix, name.clone());
+        self.routes.insert(&(prefix + "/*"), name.clone());
+        self.plugins.insert(name, (plugin, Rc::new(handler)));
     }
 
     #[cfg(feature = "_serde")]
@@ -46,6 +52,9 @@ struct RegistryHandler<L> {
     registry: Rc<core::cell::RefCell<PluginRegistry>>,
     loader: Rc<L>,
 }
+
+#[cfg(feature = "_serde")]
+use alloc::boxed::Box;
 
 #[cfg(feature = "_serde")]
 #[async_trait::async_trait(?Send)]
@@ -68,9 +77,7 @@ impl<L: crate::Loader> RequestHandler for RegistryHandler<L> {
             Post => match request.body_json().await {
                 Ok(plugin) => match self.loader.load(&plugin).await {
                     Ok(handler) => {
-                        self.registry
-                            .borrow_mut()
-                            .register(plugin, Box::new(handler));
+                        self.registry.borrow_mut().register(plugin, handler);
                         res!(Created)
                     }
                     Err(_) => {
@@ -81,5 +88,38 @@ impl<L: crate::Loader> RequestHandler for RegistryHandler<L> {
             },
             _ => res!(MethodNotAllowed),
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn match_with_leading_slash() {
+        let mut registry = PluginRegistry::new();
+        registry.register("foo", ());
+        let handler = registry.match_plugin_handler("/_foo/");
+        assert!(handler.is_some());
+    }
+
+    #[test]
+    fn match_without_leading_slash() {
+        let mut registry = PluginRegistry::new();
+        registry.register("foo", ());
+        let handler = registry.match_plugin_handler("/_foo");
+        assert!(handler.is_some());
+    }
+
+    #[test]
+    fn match_all_after_prefix() {
+        let mut registry = PluginRegistry::new();
+        registry.register("foo", ());
+        let handler = registry.match_plugin_handler("/_foo/bar");
+        assert!(handler.is_some());
+        let handler = registry.match_plugin_handler("/_foo/bar/");
+        assert!(handler.is_some());
+        let handler = registry.match_plugin_handler("/_foo/bar/baz");
+        assert!(handler.is_some());
     }
 }

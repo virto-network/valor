@@ -16,9 +16,9 @@ jobs:
     steps:
     - uses: actions/checkout@v2
     - name: Build
-      run: cargo build --verbose
+      run: cargo build
     - name: Run tests
-      run: cargo test -p valor_core --doc --verbose
+      run: cargo test -p valor_core
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
