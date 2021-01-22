@@ -92,9 +92,11 @@ async fn accept(stream: TcpStream, handler: Handler) -> http_types::Result<()> {
             .unwrap_or("unkown");
         let status: u16 = res.status().into();
 
-        info!("[{}] {} {} {}", plugin, status, method, path, {
-            id: id, status: status, dur: instant.elapsed().as_millis() as u64
-        });
+        if !path.starts_with("/_health") {
+            info!("[{}] {} {} {}", plugin, status, method, path, {
+                id: id, status: status, dur: instant.elapsed().as_millis() as u64
+            });
+        }
 
         Ok(res)
     })
