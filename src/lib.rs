@@ -36,17 +36,16 @@ mod registry;
 mod util;
 
 use alloc::{borrow::ToOwned, boxed::Box, rc::Rc, string::String};
-pub use async_trait::async_trait;
 use core::{cell::RefCell, future::Future};
-pub use http_types::{Method, StatusCode, Url};
 use registry::PluginRegistry;
 #[cfg(feature = "_serde")]
 use serde::{Deserialize, Serialize};
+
+pub use async_trait::async_trait;
+pub use http_types::{self as http, Body, Method, Request, Response, Status, StatusCode, Url};
 #[cfg(feature = "util")]
 pub use util::*;
 
-pub type Request = http_types::Request;
-pub type Response = http_types::Response;
 type Result = core::result::Result<Response, Response>;
 
 /// The main entry point for dispatching incoming requests
