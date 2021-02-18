@@ -31,6 +31,7 @@ macro_rules! res {
     }};
 }
 
+pub mod proxy;
 mod registry;
 #[cfg(feature = "util")]
 mod util;
