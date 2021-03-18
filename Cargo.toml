@@ -8,30 +8,31 @@ edition = "2018"
 repository = "https://github.com/valibre-org/valor"
 
 [dependencies]
-async-trait = "0.1.42"
-http-types = "2.8.0"
+async-trait = "0.1.48"
+http-types = "2.10.0"
 path-tree = "0.1.12"
-hashbrown = "0.9"
-serde = { version = "1.0.117", default-features = false, features = ["alloc", "derive"], optional = true }
-serde_json = { version = "1.0.59", default-features = false, features = ["alloc"], optional = true }
+hashbrown = "0.11.0"
+serde = { version = "1.0.124", default-features = false, features = ["alloc", "derive"], optional = true }
+serde_json = { version = "1.0.64", default-features = false, features = ["alloc"], optional = true }
 valor_plugin = { version = "0.4.0-alpha.0", path = "./valor_plugin", optional = true }
+http-client = { version = "6.3.5", optional = true }
 
 [dev-dependencies]
 async-std = { version = "1.9.0", features = ["attributes"] }
 
 [target.'cfg(target_arch="wasm32")'.dependencies]
-wasm-bindgen = { version = "0.2.69", optional = true }
-js-sys = { version = "0.3.46", optional = true }
-wasm-bindgen-futures = { version = "0.4.19", optional = true }
+wasm-bindgen = { version = "0.2.71", optional = true }
+js-sys = { version = "0.3.48", optional = true }
+wasm-bindgen-futures = { version = "0.4.21", optional = true }
 wee_alloc = { version = "0.4.5", optional = true }
 
 [target.'cfg(target_arch="wasm32")'.dependencies.web-sys]
-version = "0.3.46"
+version = "0.3.48"
 optional = true
 features = ["RequestInit", "Request", "ResponseInit", "Response", "Headers"]
 
 [target.'cfg(target_arch="wasm32")'.dev-dependencies]
-wasm-bindgen-test = "0.3.19"
+wasm-bindgen-test = "0.3.21"
 
 [features]
 _serde = ["serde", "serde_json"]
@@ -45,6 +46,7 @@ web = [
 	"web-sys",
 	"wee_alloc",
 ]
+proxy = ["http-client"]
 
 [workspace]
 default-members = ["valor_bin"]
