@@ -20,7 +20,7 @@ const reqToTransferable = async (req) => {
     },
   };
   if (req.method !== "GET" && req.method !== "HEAD") {
-    tReq.body = await req.arrayBuffer();
+    tReq.init.body = await req.arrayBuffer();
   }
   return tReq;
 };
