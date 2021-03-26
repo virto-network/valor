@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use kv_log_macro::{debug, warn};
 use libloading::{Library, Symbol};
-use valor::{LoadError, LoadResult, Loader, Plugin, Request, RequestHandler, Response};
+use valor::{http, LoadError, LoadResult, Loader, Plugin, RequestHandler};
 
 pub(crate) struct DynLoader;
 
@@ -39,7 +39,7 @@ pub(crate) struct PluginContainer {
 
 #[async_trait(?Send)]
 impl RequestHandler for PluginContainer {
-    async fn handle_request(&self, request: Request) -> Response {
-        self.handler.handle_request(request).await
+    async fn on_request(&self, request: http::Request) -> http::Result<http::Response> {
+        self.handler.on_request(request).await
     }
 }

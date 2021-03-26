@@ -55,38 +55,35 @@ struct RegistryHandler<L> {
 
 #[cfg(feature = "_serde")]
 use alloc::boxed::Box;
-
 #[cfg(feature = "_serde")]
 #[async_trait::async_trait(?Send)]
 impl<L: crate::Loader> RequestHandler for RegistryHandler<L> {
-    async fn handle_request(&self, mut request: crate::Request) -> crate::Response {
-        use crate::{Method::*, StatusCode::*};
-        use alloc::{string::ToString, vec::Vec};
+    async fn on_request(
+        &self,
+        mut request: crate::Request,
+    ) -> crate::http::Result<crate::Response> {
+        use crate::{http, Method::*, StatusCode};
+        use alloc::vec::Vec;
         use core::result::Result::Ok;
 
         match request.method() {
             Get => {
                 let reg = self.registry.borrow();
                 let plugins = reg.plugins.values().map(|(p, _)| p).collect::<Vec<_>>();
-                serde_json::to_vec(&plugins).map_or(res!(InternalServerError), |list| {
-                    res!(list, {
-                        content_type: "application/json",
+                serde_json::to_vec(&plugins)
+                    .map(|list| {
+                        let mut res: http::Response = list.into();
+                        res.append_header(http::headers::CONTENT_TYPE, http::mime::JSON);
+                        res
                     })
-                })
+                    .map_err(Into::into)
             }
-            Post => match request.body_json().await {
-                Ok(plugin) => match self.loader.load(&plugin).await {
-                    Ok(handler) => {
-                        self.registry.borrow_mut().register(plugin, handler);
-                        res!(Created)
-                    }
-                    Err(_) => {
-                        res!(UnprocessableEntity, "Can't load plugin")
-                    }
-                },
-                Err(e) => res!(BadRequest, e.to_string()),
-            },
-            _ => res!(MethodNotAllowed),
+            Post => {
+                let plugin = request.body_json().await?;
+                self.loader.load(&plugin).await?;
+                Ok(StatusCode::Created.into())
+            }
+            _ => Ok(StatusCode::MethodNotAllowed.into()),
         }
     }
 }

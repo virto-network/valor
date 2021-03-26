@@ -23,7 +23,7 @@ The recommended way to get the best performance and support would be to create a
 use valor::*;
 
 #[vlugin]
-async fn my_handler(req: Request) -> Response {
+async fn on_request(req: Request) -> Response {
     "OK response from a plugin".into()
 }
 ```

@@ -1,4 +1,4 @@
-use crate::{async_trait, http, Request, RequestHandler, Response, StatusCode, Url};
+use crate::{async_trait, http, Request, RequestHandler, Response, Url};
 use alloc::boxed::Box;
 use alloc::string::String;
 use core::convert::TryFrom;
@@ -25,12 +25,9 @@ impl TryFrom<String> for Proxy {
 
 #[async_trait(?Send)]
 impl RequestHandler for Proxy {
-    async fn handle_request(&self, mut req: Request) -> Response {
+    async fn on_request(&self, mut req: Request) -> http::Result<Response> {
         let url = req.url();
-        let mut upstream_url = match self.server.join(url.path()) {
-            Ok(u) => u,
-            Err(_) => return StatusCode::InternalServerError.into(),
-        };
+        let mut upstream_url = self.server.join(url.path())?;
         upstream_url.set_query(url.query());
         upstream_url.set_fragment(url.fragment());
         let body = req.take_body();
@@ -40,7 +37,7 @@ impl RequestHandler for Proxy {
         proxied_req.as_mut().clone_from(req.as_ref());
         proxied_req.set_body(body);
 
-        self.client.send(proxied_req).await.unwrap()
+        self.client.send(proxied_req).await
     }
 }
 
@@ -65,9 +62,9 @@ mod tests {
         let mut req = Request::new(Method::Post, "foo:/foo?f=fff");
         req.append_header(http_types::headers::CONTENT_TYPE, http_types::mime::JSON);
         req.set_body(body);
-        let res = p.handle_request(req).await;
+        let res = p.on_request(req).await?;
 
-        assert_eq!(res.status(), StatusCode::Accepted);
+        assert_eq!(res.status(), http::StatusCode::Accepted);
         mock.assert();
         Ok(())
     }
