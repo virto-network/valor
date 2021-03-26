@@ -80,7 +80,7 @@ async fn accept(stream: TcpStream, handler: Handler) -> http_types::Result<()> {
         let method = req.method();
         let path = req.url().path().to_string();
 
-        let res = handler.handle_request(req).await.unwrap_or_else(|err| err);
+        let res = handler.handle_request(req).await?;
 
         let id = res
             .header("x-correlation-id")

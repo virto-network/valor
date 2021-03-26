@@ -46,7 +46,7 @@ pub(crate) struct JsHandler(Function);
 
 #[async_trait(?Send)]
 impl RequestHandler for JsHandler {
-    async fn handle_request(&self, req: Request) -> Response {
+    async fn on_request(&self, req: Request) -> valor::http::Result<Response> {
         let (req, _body) = into_js_request(req).await;
         let promise = self.0.call1(&JsValue::NULL, &req).unwrap();
         let response = JsFuture::from(Promise::resolve(&promise)).await.unwrap();
