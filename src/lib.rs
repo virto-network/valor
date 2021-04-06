@@ -11,7 +11,7 @@
 extern crate alloc;
 extern crate core;
 
-//#[cfg(feature = "proxy")]
+#[cfg(feature = "proxy")]
 mod proxy;
 mod registry;
 #[cfg(feature = "util")]

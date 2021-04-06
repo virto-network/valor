@@ -2,6 +2,6 @@
 use valor::*;
 
 #[vlugin]
-async fn on_request(_req: Request) -> Response {
+async fn on_request(_req: http::Request) -> http::Response {
     "Hello Plugin!".into()
 }

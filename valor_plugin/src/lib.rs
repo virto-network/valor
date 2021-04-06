@@ -29,6 +29,7 @@ pub fn vlugin(_attr: TokenStream, item: TokenStream) -> TokenStream {
 fn handle_item_fn(item: ItemFn) -> TokenStream2 {
     use syn::ReturnType;
     let name = &item.sig.ident;
+    let return_ty = item.sig.output.clone();
 
     if item.sig.asyncness.is_none() {
         return Error::new(item.sig.fn_token.span, "Function neeeds to be async")
@@ -36,17 +37,8 @@ fn handle_item_fn(item: ItemFn) -> TokenStream2 {
             .into();
     }
 
-    if name.to_string().as_str() != "on_request" {
-        return Error::new(
-            name.span(),
-            "Only functions named \"on_request\" are supported for now",
-        )
-        .to_compile_error()
-        .into();
-    }
-
-    let ret = match item.sig.output.clone() {
-        ReturnType::Default => parse_quote! { Ok(().into()) },
+    let ret = match return_ty {
+        ReturnType::Default => parse_quote! { Ok(valor::Output::None) },
         ReturnType::Type(_, ty) => {
             // Not very robust but "good enough" way to know if return type is a result
             if ty.to_token_stream().to_string().contains("Result") {
@@ -57,40 +49,49 @@ fn handle_item_fn(item: ItemFn) -> TokenStream2 {
         }
     };
 
-    let plugin_def = quote! {
-        #[cfg(target_arch = "wasm32")]
-        use valor::web::{web_sys, wasm_bindgen, wasm_bindgen_futures, into_request, into_js_response};
-        #[cfg(target_arch = "wasm32")]
-        use wasm_bindgen::prelude::*;
+    match name.to_string().as_str() {
+        "on_request" => {
+            quote! {
+                #[cfg(target_arch = "wasm32")]
+                use valor::web::{web_sys, wasm_bindgen, wasm_bindgen_futures, into_request, into_js_response};
+                #[cfg(target_arch = "wasm32")]
+                use wasm_bindgen::prelude::*;
 
-        pub struct Vlugin;
+                pub struct Vlugin;
 
-        #[valor::async_trait(?Send)]
-        impl valor::RequestHandler for Vlugin {
-            async fn on_request(&self, req: valor::Request) -> valor::http::Result<valor::http::Response> {
-                let res = crate::on_request(req).await;
-                #ret
+                #[valor::async_trait(?Send)]
+                impl valor::Handler for Vlugin {
+                    async fn on_msg(&self, req: valor::Message) -> Result<valor::Output, valor::Error> {
+                        let res = crate::on_request(req.into()).await;
+                        #ret.map(|req| valor::Output::from(req))
+                    }
+                }
+
+                #[cfg(not(target_arch = "wasm32"))]
+                pub extern "Rust" fn instantiate_vlugin() -> impl valor::Handler {
+                    Vlugin
+                }
+
+                #[cfg(target_arch = "wasm32")]
+                #[wasm_bindgen]
+                pub async fn handler(req: web_sys::Request) -> web_sys::Response {
+                    let v = Vlugin;
+                    //TODO how to handle result in Web
+                    let res = v.on_msg(into_request(req).await.into()).await.unwrap();
+                    into_js_response(res.into()).await
+                }
+
+                #item
             }
         }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        pub extern "Rust" fn instantiate_vlugin() -> impl valor::RequestHandler {
-            Vlugin
-        }
-
-        #[cfg(target_arch = "wasm32")]
-        #[wasm_bindgen]
-        pub async fn handler(req: web_sys::Request) -> web_sys::Response {
-            let v = Vlugin;
-            //TODO how to handle result in Web
-            let res = v.on_request(into_request(req).await).await.unwrap();
-            into_js_response(res).await
-        }
-
-        #item
-    };
-
-    plugin_def
+        "on_create" => quote! {},
+        _ => Error::new(
+            name.span(),
+            "Function should be named \"on_create\" or \"on_request\"",
+        )
+        .to_compile_error()
+        .into(),
+    }
 }
 
 fn handle_item_struct(item: ItemStruct) -> TokenStream2 {

@@ -1,14 +1,7 @@
-//! Simple macro example for structures
-
 use valor::*;
 
 #[vlugin]
-#[derive(Default)]
-struct MyHandler;
+async fn on_create() {}
 
-#[async_trait(?Send)]
-impl RequestHandler for MyHandler {
-    async fn handle_request(&self, _: Request) -> Response {
-        unimplemented!()
-    }
-}
+#[vlugin]
+async fn on_request(_req: http::Request) {}

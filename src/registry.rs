@@ -1,6 +1,5 @@
-use crate::{Error, Handler, Message, Output, Plugin};
-use alloc::{borrow::ToOwned, boxed::Box, rc::Rc, string::String};
-use core::cell::RefCell;
+use crate::{Handler, Plugin};
+use alloc::{borrow::ToOwned, rc::Rc, string::String};
 use hashbrown::HashMap;
 use path_tree::PathTree;
 
@@ -47,7 +46,7 @@ impl PluginRegistry {
 
 #[cfg(feature = "_serde")]
 struct RegistryHandler<L> {
-    registry: Rc<RefCell<PluginRegistry>>,
+    registry: Rc<core::cell::RefCell<PluginRegistry>>,
     loader: Rc<L>,
 }
 
@@ -57,12 +56,12 @@ impl<L> crate::Handler for RegistryHandler<L>
 where
     L: crate::Loader,
 {
-    async fn on_msg(&self, msg: Message) -> Result<Output, Error> {
+    async fn on_msg(&self, msg: crate::Message) -> Result<crate::Output, crate::Error> {
         use crate::http::{headers, mime, Method::*, Response, StatusCode};
         use alloc::vec::Vec;
         use core::result::Result::Ok;
 
-        let Message::Http(mut request) = msg;
+        let crate::Message::Http(mut request) = msg;
 
         match request.method() {
             Get => {
@@ -74,7 +73,7 @@ where
                         res.append_header(headers::CONTENT_TYPE, mime::JSON);
                         res.into()
                     })
-                    .map_err(|e| Error::Http(e.into()))
+                    .map_err(|e| crate::Error::Http(e.into()))
             }
             Post => {
                 let plugin = request.body_json().await?;
