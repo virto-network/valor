@@ -6,16 +6,17 @@ use async_std::{
     stream::StreamExt,
 };
 use kv_log_macro::{error, info, warn};
-use loader::DynLoader;
+use loader::Loader;
 use std::fs::File;
 use std::path::PathBuf;
 use std::time::Instant;
 use structopt::StructOpt;
 use uuid::Uuid;
+use valor::{http, Handler};
 
 mod loader;
 
-type Handler = valor::Handler<DynLoader>;
+type Runtime = valor::Runtime<Loader>;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "valor")]
@@ -30,7 +31,7 @@ struct Opt {
 }
 
 #[async_std::main]
-async fn main() -> http_types::Result<()> {
+async fn main() -> http::Result<()> {
     femme::with_level(femme::LevelFilter::Debug);
     let opt = Opt::from_args();
 
@@ -38,16 +39,16 @@ async fn main() -> http_types::Result<()> {
     let addr = format!("http://{}", listener.local_addr()?);
     info!("listening on {}", addr);
 
-    let mut handler = Handler::new(DynLoader).with_health();
+    let mut runtime = Runtime::new(Loader::default()).with_health();
     if opt.with_registry {
-        handler = handler.with_registry()
+        runtime = runtime.with_registry()
     };
 
     if opt.plugin_file.is_some() {
         let file = File::open(opt.plugin_file.unwrap()).expect("Plugin file");
         let plugins: Vec<valor::Plugin> = serde_json::from_reader(file).expect("Plugin list");
         for p in plugins {
-            handler
+            runtime
                 .load_plugin(p)
                 .await
                 .unwrap_or_else(|err| warn!("{:?}", err));
@@ -57,9 +58,9 @@ async fn main() -> http_types::Result<()> {
     let mut incoming = listener.incoming();
     while let Some(stream) = incoming.next().await {
         let stream = stream?;
-        let handler = handler.clone();
+        let runtime = runtime.clone();
         task::spawn_local(async move {
-            if let Err(err) = accept(stream, handler).await {
+            if let Err(err) = accept(stream, runtime).await {
                 error!("{}", err);
             }
         });
@@ -69,7 +70,7 @@ async fn main() -> http_types::Result<()> {
 
 const REQ_ID_HEADER: &str = "x-request-id";
 
-async fn accept(stream: TcpStream, handler: Handler) -> http_types::Result<()> {
+async fn accept(stream: TcpStream, runtime: Runtime) -> Result<(), valor::Error> {
     async_h1::accept(stream.clone(), |mut req| async {
         let instant = Instant::now();
         if req.header(REQ_ID_HEADER).is_none() {
@@ -80,7 +81,7 @@ async fn accept(stream: TcpStream, handler: Handler) -> http_types::Result<()> {
         let method = req.method();
         let path = req.url().path().to_string();
 
-        let res = handler.handle_request(req).await?;
+        let res: http::Response = runtime.on_msg(req.into()).await?.into();
 
         let id = res
             .header("x-correlation-id")

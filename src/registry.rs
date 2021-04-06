@@ -1,9 +1,10 @@
-use crate::{Plugin, RequestHandler};
-use alloc::{borrow::ToOwned, rc::Rc, string::String};
+use crate::{Error, Handler, Message, Output, Plugin};
+use alloc::{borrow::ToOwned, boxed::Box, rc::Rc, string::String};
+use core::cell::RefCell;
 use hashbrown::HashMap;
 use path_tree::PathTree;
 
-type PluginHandler = (Plugin, Rc<dyn RequestHandler>);
+type PluginHandler = (Plugin, Rc<dyn Handler>);
 
 /// Plugin to keep track of registered plugins
 pub(crate) struct PluginRegistry {
@@ -25,10 +26,7 @@ impl PluginRegistry {
         Some((plugin.clone(), handler.clone()))
     }
 
-    pub fn register<H>(&mut self, plugin: impl Into<Plugin>, handler: H)
-    where
-        H: RequestHandler + 'static,
-    {
+    pub fn register<H: Handler + 'static>(&mut self, plugin: impl Into<Plugin>, handler: H) {
         let plugin = plugin.into();
         let prefix = "/".to_owned() + plugin.prefix();
         let name = plugin.name().to_owned();
@@ -42,29 +40,29 @@ impl PluginRegistry {
     pub fn get_handler<L: crate::Loader>(
         registry: Rc<core::cell::RefCell<Self>>,
         loader: Rc<L>,
-    ) -> impl RequestHandler {
+    ) -> impl crate::Handler {
         RegistryHandler { registry, loader }
     }
 }
 
 #[cfg(feature = "_serde")]
 struct RegistryHandler<L> {
-    registry: Rc<core::cell::RefCell<PluginRegistry>>,
+    registry: Rc<RefCell<PluginRegistry>>,
     loader: Rc<L>,
 }
 
 #[cfg(feature = "_serde")]
-use alloc::boxed::Box;
-#[cfg(feature = "_serde")]
 #[async_trait::async_trait(?Send)]
-impl<L: crate::Loader> RequestHandler for RegistryHandler<L> {
-    async fn on_request(
-        &self,
-        mut request: crate::Request,
-    ) -> crate::http::Result<crate::Response> {
-        use crate::{http, Method::*, StatusCode};
+impl<L> crate::Handler for RegistryHandler<L>
+where
+    L: crate::Loader,
+{
+    async fn on_msg(&self, msg: Message) -> Result<Output, Error> {
+        use crate::http::{headers, mime, Method::*, Response, StatusCode};
         use alloc::vec::Vec;
         use core::result::Result::Ok;
+
+        let Message::Http(mut request) = msg;
 
         match request.method() {
             Get => {
@@ -72,18 +70,24 @@ impl<L: crate::Loader> RequestHandler for RegistryHandler<L> {
                 let plugins = reg.plugins.values().map(|(p, _)| p).collect::<Vec<_>>();
                 serde_json::to_vec(&plugins)
                     .map(|list| {
-                        let mut res: http::Response = list.into();
-                        res.append_header(http::headers::CONTENT_TYPE, http::mime::JSON);
-                        res
+                        let mut res: Response = list.into();
+                        res.append_header(headers::CONTENT_TYPE, mime::JSON);
+                        res.into()
                     })
-                    .map_err(Into::into)
+                    .map_err(|e| Error::Http(e.into()))
             }
             Post => {
                 let plugin = request.body_json().await?;
-                self.loader.load(&plugin).await?;
-                Ok(StatusCode::Created.into())
+                let factory = self.loader.load(&plugin).await?;
+                let handler = factory();
+                self.registry.borrow_mut().register(plugin, handler);
+                let res: Response = StatusCode::Created.into();
+                Ok(res.into())
             }
-            _ => Ok(StatusCode::MethodNotAllowed.into()),
+            _ => {
+                let res: Response = StatusCode::MethodNotAllowed.into();
+                Ok(res.into())
+            }
         }
     }
 }

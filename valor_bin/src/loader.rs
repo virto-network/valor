@@ -1,17 +1,23 @@
 use async_trait::async_trait;
 use kv_log_macro::{debug, warn};
 use libloading::{Library, Symbol};
-use valor::{http, LoadError, LoadResult, Loader, Plugin, RequestHandler};
+use std::{cell::RefCell, collections::HashMap, rc::Rc};
+use valor::{Handler, LoadError, VluginFactory};
 
-pub(crate) struct DynLoader;
+#[derive(Default)]
+pub(crate) struct Loader {
+    plugins: RefCell<HashMap<String, Rc<Library>>>,
+}
 
 #[async_trait(?Send)]
-impl Loader for DynLoader {
-    type Handler = PluginContainer;
-
-    async fn load(&self, plugin: &Plugin) -> LoadResult<Self> {
+impl valor::Loader for Loader {
+    async fn load(&self, plugin: &valor::Plugin) -> Result<VluginFactory, valor::LoadError> {
         match plugin {
-            Plugin::Native { name, path, .. } => {
+            valor::Plugin::Native { name, path, .. } => {
+                if let Some(factory) = self.get_factory(name) {
+                    return Ok(factory);
+                }
+
                 let path = path.as_ref().unwrap_or(name);
                 debug!("loading native plugin {}", path);
                 let lib = Library::new(path).map_err(|e| {
@@ -19,27 +25,28 @@ impl Loader for DynLoader {
                     LoadError::NotFound
                 })?;
 
-                let get_request_handler: Symbol<'_, fn() -> _> =
-                    unsafe { lib.get(b"get_request_handler") }.map_err(|_| LoadError::BadFormat)?;
-                debug!("symbol {:?}", plugin);
+                self.plugins
+                    .clone()
+                    .borrow_mut()
+                    .insert(name.into(), Rc::new(lib));
 
-                let handler = get_request_handler();
-
-                Ok(PluginContainer { handler, _lib: lib })
+                self.get_factory(name).ok_or(LoadError::NotFound)
             }
             _ => Err(LoadError::NotSupported),
         }
     }
 }
 
-pub(crate) struct PluginContainer {
-    handler: Box<dyn RequestHandler>,
-    _lib: Library,
-}
-
-#[async_trait(?Send)]
-impl RequestHandler for PluginContainer {
-    async fn on_request(&self, request: http::Request) -> http::Result<http::Response> {
-        self.handler.on_request(request).await
+impl Loader {
+    fn get_factory(&self, name: &str) -> Option<VluginFactory> {
+        let lib = self.plugins.borrow().get(name)?.clone();
+        let name = name.to_owned();
+        Some(Box::new(move || {
+            let lib = lib.clone();
+            let factory: Symbol<'_, fn() -> Box<dyn Handler>> =
+                unsafe { lib.get(b"instantiate_vlugin") }.expect("Plugin interface");
+            debug!("symbol of {} {:?}", name, factory);
+            factory()
+        }))
     }
 }

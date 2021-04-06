@@ -1,4 +1,4 @@
-use crate::{async_trait, http, Request, RequestHandler, Response, Url};
+use crate::{async_trait, http, Error, Handler, Message, Output};
 use alloc::boxed::Box;
 use alloc::string::String;
 use core::convert::TryFrom;
@@ -9,7 +9,7 @@ use http_client::{h1::H1Client as Client, HttpClient};
 
 struct Proxy {
     client: Client,
-    server: Url,
+    server: http::Url,
 }
 
 impl TryFrom<String> for Proxy {
@@ -24,20 +24,25 @@ impl TryFrom<String> for Proxy {
 }
 
 #[async_trait(?Send)]
-impl RequestHandler for Proxy {
-    async fn on_request(&self, mut req: Request) -> http::Result<Response> {
+impl Handler for Proxy {
+    async fn on_msg(&self, msg: Message) -> Result<Output, Error> {
+        let Message::Http(mut req) = msg;
+
         let url = req.url();
-        let mut upstream_url = self.server.join(url.path())?;
+        let mut upstream_url = self
+            .server
+            .join(url.path())
+            .map_err(|_| http::Error::from_str(http::StatusCode::InternalServerError, ""))?;
         upstream_url.set_query(url.query());
         upstream_url.set_fragment(url.fragment());
         let body = req.take_body();
 
-        let mut proxied_req = Request::new(req.method(), upstream_url);
+        let mut proxied_req = http::Request::new(req.method(), upstream_url);
         // copy headers
         proxied_req.as_mut().clone_from(req.as_ref());
         proxied_req.set_body(body);
 
-        self.client.send(proxied_req).await
+        Ok(self.client.send(proxied_req).await?.into())
     }
 }
 
@@ -49,7 +54,7 @@ mod tests {
     use http_types::Method;
 
     #[test]
-    async fn foward_request() -> Result<(), http::Error> {
+    async fn foward_request() -> Result<(), Error> {
         let body = r#"{"hello": "world"}"#;
         let mock = mockito::mock("POST", "/foo?f=fff")
             .with_status(202)
@@ -59,10 +64,10 @@ mod tests {
 
         let p: Proxy = mockito::server_url().try_into()?;
 
-        let mut req = Request::new(Method::Post, "foo:/foo?f=fff");
+        let mut req = http::Request::new(Method::Post, "foo:/foo?f=fff");
         req.append_header(http_types::headers::CONTENT_TYPE, http_types::mime::JSON);
         req.set_body(body);
-        let res = p.on_request(req).await?;
+        let res: http::Response = p.on_msg(req.into()).await?.into();
 
         assert_eq!(res.status(), http::StatusCode::Accepted);
         mock.assert();
