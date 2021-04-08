@@ -11,6 +11,7 @@
 extern crate alloc;
 extern crate core;
 
+mod message_handler;
 #[cfg(feature = "proxy")]
 mod proxy;
 mod registry;
@@ -18,14 +19,14 @@ mod registry;
 mod util;
 
 use alloc::{borrow::ToOwned, boxed::Box, rc::Rc, string::String};
-use core::marker::PhantomData;
-use core::{cell::RefCell, fmt};
+use core::cell::RefCell;
 use registry::PluginRegistry;
 #[cfg(feature = "_serde")]
 use serde::{Deserialize, Serialize};
 
 pub use async_trait::async_trait;
 pub use http_types as http;
+pub use message_handler::*;
 #[cfg(feature = "util")]
 pub use util::*;
 
@@ -159,141 +160,6 @@ impl<L> Clone for Runtime<L> {
             registry: self.registry.clone(),
             loader: self.loader.clone(),
         }
-    }
-}
-
-/// Type of message supported by a handler
-pub enum Message {
-    Http(http::Request),
-}
-
-impl From<http::Request> for Message {
-    fn from(req: http::Request) -> Self {
-        Message::Http(req)
-    }
-}
-
-impl From<Message> for http::Request {
-    fn from(msg: Message) -> Self {
-        match msg {
-            Message::Http(req) => req,
-        }
-    }
-}
-
-/// Type of valid outputs that a handler can return
-pub enum Output {
-    Http(http::Response),
-    None,
-}
-
-impl From<Output> for http::Response {
-    fn from(out: Output) -> Self {
-        match out {
-            Output::Http(res) => res,
-            _ => unreachable!(),
-        }
-    }
-}
-
-impl From<http::Body> for Output {
-    fn from(body: http::Body) -> Self {
-        let res: http::Response = body.into();
-        res.into()
-    }
-}
-
-impl From<http::Response> for Output {
-    fn from(res: http::Response) -> Self {
-        Output::Http(res)
-    }
-}
-
-impl From<()> for Output {
-    fn from(_: ()) -> Self {
-        Output::None
-    }
-}
-
-#[derive(Debug)]
-pub enum Error {
-    Http(http::Error),
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Error::Http(err) => write!(f, "{}", err),
-        }
-    }
-}
-
-impl From<Error> for http::Error {
-    fn from(err: Error) -> Self {
-        match err {
-            Error::Http(err) => err,
-        }
-    }
-}
-
-impl From<http::Error> for Error {
-    fn from(err: http::Error) -> Self {
-        Error::Http(err)
-    }
-}
-
-/// Something that can handle messages
-#[async_trait(?Send)]
-pub trait Handler {
-    async fn on_msg(&self, msg: Message) -> Result<Output, Error>;
-}
-
-#[async_trait(?Send)]
-impl<T> Handler for Box<T>
-where
-    T: Handler + ?Sized,
-{
-    async fn on_msg(&self, msg: Message) -> Result<Output, Error> {
-        (&**self).on_msg(msg).await
-    }
-}
-
-/// Shorthand for handlers created from a function closure
-pub fn h<M, O, F, Fut>(handler_fn: F) -> FnHandler<M, O, F, Fut>
-where
-    F: Fn(M) -> Fut,
-    M: From<Message>,
-    O: Into<Output>,
-    Fut: core::future::Future<Output = Result<O, Error>>,
-{
-    FnHandler(handler_fn, PhantomData)
-}
-
-pub struct FnHandler<M, O, F, Fut>(F, PhantomData<(M, O, Fut)>)
-where
-    F: Fn(M) -> Fut,
-    M: From<Message>,
-    O: Into<Output>,
-    Fut: core::future::Future<Output = Result<O, Error>>;
-
-#[async_trait(?Send)]
-impl<M, O, F, Fut> Handler for FnHandler<M, O, F, Fut>
-where
-    F: Fn(M) -> Fut,
-    M: From<Message>,
-    O: Into<Output>,
-    Fut: core::future::Future<Output = Result<O, Error>>,
-{
-    async fn on_msg(&self, msg: Message) -> Result<Output, Error> {
-        Ok(self.0(M::from(msg)).await?.into())
-    }
-}
-
-// Dummy handler mostly for test purposes
-#[async_trait(?Send)]
-impl Handler for () {
-    async fn on_msg(&self, _msg: Message) -> Result<Output, Error> {
-        Ok(Output::None)
     }
 }
 

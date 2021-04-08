@@ -1,5 +1,5 @@
 use crate::{Handler, Plugin};
-use alloc::{borrow::ToOwned, rc::Rc, string::String};
+use alloc::{borrow::ToOwned, boxed::Box, rc::Rc, string::String};
 use hashbrown::HashMap;
 use path_tree::PathTree;
 

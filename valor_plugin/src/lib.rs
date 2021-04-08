@@ -62,7 +62,7 @@ fn handle_item_fn(item: ItemFn) -> TokenStream2 {
                 #[valor::async_trait(?Send)]
                 impl valor::Handler for Vlugin {
                     async fn on_msg(&self, req: valor::Message) -> Result<valor::Output, valor::Error> {
-                        let res = crate::on_request(req.into()).await;
+                        let res = $crate::on_request(req.into()).await;
                         #ret.map(|req| valor::Output::from(req))
                     }
                 }
