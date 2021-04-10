@@ -1,5 +1,5 @@
 use crate::{Handler, Plugin};
-use alloc::{borrow::ToOwned, boxed::Box, rc::Rc, string::String};
+use alloc::{borrow::ToOwned, rc::Rc, string::String};
 use hashbrown::HashMap;
 use path_tree::PathTree;
 
@@ -45,6 +45,8 @@ impl PluginRegistry {
 }
 
 #[cfg(feature = "_serde")]
+use alloc::boxed::Box;
+#[cfg(feature = "_serde")]
 struct RegistryHandler<L> {
     registry: Rc<core::cell::RefCell<PluginRegistry>>,
     loader: Rc<L>,
@@ -57,11 +59,17 @@ where
     L: crate::Loader,
 {
     async fn on_msg(&self, msg: crate::Message) -> Result<crate::Output, crate::Error> {
-        use crate::http::{headers, mime, Method::*, Response, StatusCode};
+        use crate::{
+            http::{headers, mime, Method::*, Response, StatusCode},
+            Message,
+        };
         use alloc::vec::Vec;
         use core::result::Result::Ok;
 
-        let crate::Message::Http(mut request) = msg;
+        let mut request = match msg {
+            Message::Http(req) => req,
+            Message::Ping => return Err(crate::Error::NotSupported),
+        };
 
         match request.method() {
             Get => {
@@ -88,6 +96,10 @@ where
                 Ok(res.into())
             }
         }
+    }
+
+    fn context(&self) -> &crate::Context {
+        todo!()
     }
 }
 

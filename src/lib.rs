@@ -38,7 +38,7 @@ pub use util::*;
 /// # #[async_std::main] async fn main() { test().await.expect("Runtime handles messages") }
 /// # async fn test() -> Result<(), Error> {
 /// let handler = Runtime::new(())
-///     .with_plugin("foo", h(|req: http::Request| async move {
+///     .with_plugin("foo", h(|req: http::Request, _| async move {
 ///         let res: http::Response = req.url().path().into();
 ///         Ok(res)
 ///     }));
@@ -54,6 +54,7 @@ pub use util::*;
 /// # Ok(()) }
 /// ```
 pub struct Runtime<L> {
+    cx: Context,
     registry: Rc<RefCell<PluginRegistry>>,
     loader: Rc<L>,
 }
@@ -62,6 +63,7 @@ impl<L: Loader> Runtime<L> {
     /// Creates a new `Handler` instance
     pub fn new(loader: impl Into<Rc<L>>) -> Self {
         Runtime {
+            cx: Context::default(),
             registry: Rc::new(RefCell::new(PluginRegistry::new())),
             loader: loader.into(),
         }
@@ -121,7 +123,11 @@ impl<L> Handler for Runtime<L> {
     /// the response as `x-correlation-id`(e.g. used by valor_web to match requests and responses)
     async fn on_msg(&self, msg: Message) -> Result<Output, Error> {
         use http::{Error, StatusCode::*};
-        let Message::Http(mut request) = msg;
+        let mut request = match msg {
+            Message::Http(req) => req,
+            _ => return Err(crate::Error::NotSupported),
+        };
+
         let req_id = request
             .header("x-request-id")
             .ok_or_else(|| Error::from_str(BadRequest, "Missing request ID"))?
@@ -149,14 +155,19 @@ impl<L> Handler for Runtime<L> {
                 res.append_header("x-valor-plugin", plugin.name());
                 res.into()
             }
-            _ => Output::None,
+            _ => Output::Pong,
         })
+    }
+
+    fn context(&self) -> &Context {
+        &self.cx
     }
 }
 
 impl<L> Clone for Runtime<L> {
     fn clone(&self) -> Self {
         Runtime {
+            cx: Context::default(),
             registry: self.registry.clone(),
             loader: self.loader.clone(),
         }

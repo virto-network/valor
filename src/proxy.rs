@@ -1,4 +1,4 @@
-use crate::{async_trait, http, Error, Handler, Message, Output};
+use crate::{async_trait, http, Context, Error, Handler, Message, Output};
 use alloc::boxed::Box;
 use alloc::string::String;
 use core::convert::TryFrom;
@@ -25,8 +25,15 @@ impl TryFrom<String> for Proxy {
 
 #[async_trait(?Send)]
 impl Handler for Proxy {
+    fn context(&self) -> &Context {
+        unreachable!()
+    }
+
     async fn on_msg(&self, msg: Message) -> Result<Output, Error> {
-        let Message::Http(mut req) = msg;
+        let mut req = match msg {
+            Message::Http(req) => req,
+            Message::Ping => return Err(Error::NotSupported),
+        };
 
         let url = req.url();
         let mut upstream_url = self
@@ -35,12 +42,12 @@ impl Handler for Proxy {
             .map_err(|_| http::Error::from_str(http::StatusCode::InternalServerError, ""))?;
         upstream_url.set_query(url.query());
         upstream_url.set_fragment(url.fragment());
-        let body = req.take_body();
 
         let mut proxied_req = http::Request::new(req.method(), upstream_url);
         // copy headers
         proxied_req.as_mut().clone_from(req.as_ref());
-        proxied_req.set_body(body);
+
+        proxied_req.set_body(req.take_body());
 
         Ok(self.client.send(proxied_req).await?.into())
     }
