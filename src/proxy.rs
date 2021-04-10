@@ -1,4 +1,4 @@
-use crate::{async_trait, http, Context, Error, Handler, Message, Output};
+use crate::{async_trait, http, Answer, Context, Error, Message, Vlugin};
 use alloc::boxed::Box;
 use alloc::string::String;
 use core::convert::TryFrom;
@@ -24,12 +24,12 @@ impl TryFrom<String> for Proxy {
 }
 
 #[async_trait(?Send)]
-impl Handler for Proxy {
+impl Vlugin for Proxy {
     fn context(&self) -> &Context {
         unreachable!()
     }
 
-    async fn on_msg(&self, msg: Message) -> Result<Output, Error> {
+    async fn on_msg(&self, msg: Message) -> Result<Answer, Error> {
         let mut req = match msg {
             Message::Http(req) => req,
             Message::Ping => return Err(Error::NotSupported),

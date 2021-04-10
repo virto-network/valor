@@ -1,9 +1,9 @@
-use crate::{Handler, Plugin};
+use crate::{Plugin, Vlugin};
 use alloc::{borrow::ToOwned, rc::Rc, string::String};
 use hashbrown::HashMap;
 use path_tree::PathTree;
 
-type PluginHandler = (Plugin, Rc<dyn Handler>);
+type PluginHandler = (Plugin, Rc<dyn Vlugin>);
 
 /// Plugin to keep track of registered plugins
 pub(crate) struct PluginRegistry {
@@ -25,7 +25,7 @@ impl PluginRegistry {
         Some((plugin.clone(), handler.clone()))
     }
 
-    pub fn register<H: Handler + 'static>(&mut self, plugin: impl Into<Plugin>, handler: H) {
+    pub fn register<H: Vlugin + 'static>(&mut self, plugin: impl Into<Plugin>, handler: H) {
         let plugin = plugin.into();
         let prefix = "/".to_owned() + plugin.prefix();
         let name = plugin.name().to_owned();
@@ -39,7 +39,7 @@ impl PluginRegistry {
     pub fn get_handler<L: crate::Loader>(
         registry: Rc<core::cell::RefCell<Self>>,
         loader: Rc<L>,
-    ) -> impl crate::Handler {
+    ) -> impl crate::Vlugin {
         RegistryHandler { registry, loader }
     }
 }
@@ -54,11 +54,11 @@ struct RegistryHandler<L> {
 
 #[cfg(feature = "_serde")]
 #[async_trait::async_trait(?Send)]
-impl<L> crate::Handler for RegistryHandler<L>
+impl<L> crate::Vlugin for RegistryHandler<L>
 where
     L: crate::Loader,
 {
-    async fn on_msg(&self, msg: crate::Message) -> Result<crate::Output, crate::Error> {
+    async fn on_msg(&self, msg: crate::Message) -> Result<crate::Answer, crate::Error> {
         use crate::{
             http::{headers, mime, Method::*, Response, StatusCode},
             Message,

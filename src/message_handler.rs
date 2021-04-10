@@ -27,9 +27,10 @@ impl Context {
     }
 }
 
-/// The Handler trait is what defines a plugin.
+/// The Vlugin trait defines plugins that can handle any supported message
+/// format. It also allows the plugin to initialize an internal state with the
+/// help of the `Context` type.
 ///
-/// Plugins are anthing that implements the Handler trait.
 /// ```
 /// # #[async_std::main] async fn main() { test().await.unwrap() }
 /// # use valor_core::*;
@@ -37,13 +38,13 @@ impl Context {
 /// struct SomeVlugin(Context);
 ///
 /// #[async_trait(?Send)]
-/// impl Handler for SomeVlugin {
+/// impl Vlugin for SomeVlugin {
 ///     async fn on_create(&mut self) -> Result<(), Error> {
 ///         self.0.set("some data");
 ///         Ok(())
 ///     }
 ///
-///     async fn on_msg(&self, msg: Message) -> Result<Output, Error> {
+///     async fn on_msg(&self, msg: Message) -> Result<Answer, Error> {
 ///         let _data = self.context().get::<&str>();
 ///         Ok(().into())
 ///     }
@@ -56,14 +57,14 @@ impl Context {
 /// # async fn test() -> Result<(), Error> {
 /// let v = SomeVlugin::create().await?;
 /// match v.on_msg(().into()).await? {
-///     Output::Pong => {},
+///     Answer::Pong => {},
 ///     _ => panic!("Wrong answer!"),
 /// };
 /// # Ok(()) }
 /// ```
 ///
 #[async_trait(?Send)]
-pub trait Handler {
+pub trait Vlugin {
     async fn create() -> Result<Self, Error>
     where
         Self: Sized + Default,
@@ -80,19 +81,19 @@ pub trait Handler {
         Ok(())
     }
 
-    async fn on_msg(&self, msg: Message) -> Result<Output, Error>;
+    async fn on_msg(&self, msg: Message) -> Result<Answer, Error>;
 }
 
 #[async_trait(?Send)]
-impl<T> Handler for Box<T>
+impl<T> Vlugin for Box<T>
 where
-    T: Handler + ?Sized,
+    T: Vlugin + ?Sized,
 {
     async fn on_create(&mut self) -> Result<(), Error> {
         (&mut **self).on_create().await
     }
 
-    async fn on_msg(&self, msg: Message) -> Result<Output, Error> {
+    async fn on_msg(&self, msg: Message) -> Result<Answer, Error> {
         (&**self).on_msg(msg).await
     }
 
@@ -106,7 +107,7 @@ pub fn h<M, O, F, Fut>(handler_fn: F) -> FnHandler<M, O, F, Fut>
 where
     F: Fn(M, &Context) -> Fut,
     M: From<Message>,
-    O: Into<Output>,
+    O: Into<Answer>,
     Fut: core::future::Future<Output = Result<O, Error>>,
 {
     FnHandler(handler_fn, Context::default(), PhantomData)
@@ -116,18 +117,18 @@ pub struct FnHandler<M, O, F, Fut>(F, Context, PhantomData<(M, O, Fut)>)
 where
     F: Fn(M, &Context) -> Fut,
     M: From<Message>,
-    O: Into<Output>,
+    O: Into<Answer>,
     Fut: core::future::Future<Output = Result<O, Error>>;
 
 #[async_trait(?Send)]
-impl<M, O, F, Fut> Handler for FnHandler<M, O, F, Fut>
+impl<M, O, F, Fut> Vlugin for FnHandler<M, O, F, Fut>
 where
     F: Fn(M, &Context) -> Fut,
     M: From<Message>,
-    O: Into<Output>,
+    O: Into<Answer>,
     Fut: core::future::Future<Output = Result<O, Error>>,
 {
-    async fn on_msg(&self, msg: Message) -> Result<Output, Error> {
+    async fn on_msg(&self, msg: Message) -> Result<Answer, Error> {
         Ok(self.0(M::from(msg), self.context()).await?.into())
     }
 
@@ -138,9 +139,9 @@ where
 
 // Dummy handler mostly for test purposes
 #[async_trait(?Send)]
-impl Handler for () {
-    async fn on_msg(&self, _msg: Message) -> Result<Output, Error> {
-        Ok(Output::Pong)
+impl Vlugin for () {
+    async fn on_msg(&self, _msg: Message) -> Result<Answer, Error> {
+        Ok(Answer::Pong)
     }
 
     fn context(&self) -> &Context {
@@ -178,36 +179,36 @@ impl From<Message> for http::Request {
 
 /// Type of valid outputs that a handler can return
 #[derive(Debug)]
-pub enum Output {
+pub enum Answer {
     Http(http::Response),
     Pong,
 }
 
-impl From<Output> for http::Response {
-    fn from(out: Output) -> Self {
+impl From<Answer> for http::Response {
+    fn from(out: Answer) -> Self {
         match out {
-            Output::Http(res) => res,
-            Output::Pong => http::StatusCode::Ok.into(),
+            Answer::Http(res) => res,
+            Answer::Pong => http::StatusCode::Ok.into(),
         }
     }
 }
 
-impl From<http::Body> for Output {
+impl From<http::Body> for Answer {
     fn from(body: http::Body) -> Self {
         let res: http::Response = body.into();
         res.into()
     }
 }
 
-impl From<http::Response> for Output {
+impl From<http::Response> for Answer {
     fn from(res: http::Response) -> Self {
-        Output::Http(res)
+        Answer::Http(res)
     }
 }
 
-impl From<()> for Output {
+impl From<()> for Answer {
     fn from(_: ()) -> Self {
-        Output::Pong
+        Answer::Pong
     }
 }
 

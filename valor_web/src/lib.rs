@@ -1,7 +1,7 @@
 //! Valor web
 use loader::Loader;
 use std::rc::Rc;
-use valor::{web::into_request, Handler};
+use valor::{web::into_request, Vlugin};
 use wasm_bindgen::{prelude::*, JsCast};
 use wasm_bindgen_futures::spawn_local;
 use web_sys::{window, BroadcastChannel, MessageEvent, RequestInit};
@@ -23,7 +23,7 @@ pub async fn run() -> Result<(), JsValue> {
     init_log();
     load_service_worker("sw.js")?;
 
-    let handler = Handler::new(Loader);
+    let handler = Vlugin::new(Loader);
 
     let req_channel = BroadcastChannel::new("req_channel")?;
     let res_channel = Rc::new(BroadcastChannel::new("res_channel")?);

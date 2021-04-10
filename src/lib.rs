@@ -30,14 +30,14 @@ pub use message_handler::*;
 #[cfg(feature = "util")]
 pub use util::*;
 
-/// The main entry point for dispatching incoming requests
-/// to plugins registered under a specific URL prefix.
+/// The runtime is a "Vlugin" itself that serves as the main entry point for
+/// dispatching incoming messages to vlugins registered under a specific URL pattern.
 ///
 /// ```
 /// # use valor_core::*;
 /// # #[async_std::main] async fn main() { test().await.expect("Runtime handles messages") }
 /// # async fn test() -> Result<(), Error> {
-/// let handler = Runtime::new(())
+/// let runtime = Runtime::new(())
 ///     .with_plugin("foo", h(|req: http::Request, _| async move {
 ///         let res: http::Response = req.url().path().into();
 ///         Ok(res)
@@ -45,7 +45,7 @@ pub use util::*;
 ///
 /// let mut request = http::Request::new(http::Method::Get, "http://example.com/_foo/bar/baz");
 /// request.insert_header("x-request-id", "123");
-/// let mut res: http::Response = handler.on_msg(request.into()).await?.into();
+/// let mut res: http::Response = runtime.on_msg(request.into()).await?.into();
 ///
 /// assert_eq!(res.status(), http::StatusCode::Ok);
 /// assert_eq!(res.header("x-correlation-id").unwrap(), "123");
@@ -70,8 +70,7 @@ impl<L: Loader> Runtime<L> {
     }
 
     /// Uses the configured loader to load and register the provided plugin
-    pub async fn load_plugin(&self, plugin: Plugin) -> Result<(), LoadError>
-where {
+    pub async fn load_plugin(&self, plugin: Plugin) -> Result<(), LoadError> {
         let factory = self.loader.load(&plugin).await?;
         let handler = factory();
         self.register_plugin(plugin, handler);
@@ -100,7 +99,7 @@ where {
     /// Adds a plugin with its handler to the internal registry
     pub fn with_plugin<H>(self, plugin: impl Into<Plugin>, handler: H) -> Self
     where
-        H: Handler + 'static,
+        H: Vlugin + 'static,
     {
         self.register_plugin(plugin, handler);
         self
@@ -108,20 +107,20 @@ where {
 
     fn register_plugin<H>(&self, plugin: impl Into<Plugin>, handler: H)
     where
-        H: Handler + 'static,
+        H: Vlugin + 'static,
     {
-        let handler: Box<dyn Handler> = Box::new(handler);
+        let handler: Box<dyn Vlugin> = Box::new(handler);
         self.registry.borrow_mut().register(plugin.into(), handler);
     }
 }
 
 #[async_trait(?Send)]
-impl<L> Handler for Runtime<L> {
+impl<L> Vlugin for Runtime<L> {
     /// Handles an incoming request by answering form a plugin that matches the URL pattern
     ///
     /// It requires the request to specify a `x-request-id` header that is set back on
     /// the response as `x-correlation-id`(e.g. used by valor_web to match requests and responses)
-    async fn on_msg(&self, msg: Message) -> Result<Output, Error> {
+    async fn on_msg(&self, msg: Message) -> Result<Answer, Error> {
         use http::{Error, StatusCode::*};
         let mut request = match msg {
             Message::Http(req) => req,
@@ -150,12 +149,12 @@ impl<L> Handler for Runtime<L> {
         request.url_mut().set_path(&without_prefix);
 
         handler.on_msg(request.into()).await.map(|out| match out {
-            Output::Http(mut res) => {
+            Answer::Http(mut res) => {
                 res.append_header("x-correlation-id", req_id);
                 res.append_header("x-valor-plugin", plugin.name());
                 res.into()
             }
-            _ => Output::Pong,
+            _ => Answer::Pong,
         })
     }
 
@@ -182,7 +181,7 @@ pub trait Loader: 'static {
     async fn load(&self, plugin: &Plugin) -> Result<VluginFactory, LoadError>;
 }
 
-pub type VluginFactory<'a> = Box<dyn Fn() -> Box<dyn Handler> + 'a>;
+pub type VluginFactory<'a> = Box<dyn Fn() -> Box<dyn Vlugin> + 'a>;
 
 /// Errors loading a plugin
 #[derive(Debug)]

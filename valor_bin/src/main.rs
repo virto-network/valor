@@ -12,7 +12,7 @@ use std::path::PathBuf;
 use std::time::Instant;
 use structopt::StructOpt;
 use uuid::Uuid;
-use valor::{http, Handler};
+use valor::{http, Vlugin};
 
 mod loader;
 

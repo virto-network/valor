@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use kv_log_macro::{debug, warn};
 use libloading::{Library, Symbol};
 use std::{cell::RefCell, collections::HashMap, rc::Rc};
-use valor::{Handler, LoadError, VluginFactory};
+use valor::{LoadError, Vlugin, VluginFactory};
 
 #[derive(Default)]
 pub(crate) struct Loader {
@@ -43,7 +43,7 @@ impl Loader {
         let name = name.to_owned();
         Some(Box::new(move || {
             let lib = lib.clone();
-            let factory: Symbol<'_, fn() -> Box<dyn Handler>> =
+            let factory: Symbol<'_, fn() -> Box<dyn Vlugin>> =
                 unsafe { lib.get(b"instantiate_vlugin") }.expect("Plugin interface");
             debug!("symbol of {} {:?}", name, factory);
             factory()
