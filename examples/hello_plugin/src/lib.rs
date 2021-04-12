@@ -1,7 +1,7 @@
-//! Simple macro example for functions
+//! Simple example usage of an HTTP handler plugin.
 use valor::*;
 
 #[vlugin]
-async fn on_request(_req: http::Request) -> http::Response {
+pub async fn on_request(_req: http::Request) -> http::Response {
     "Hello Plugin!".into()
 }

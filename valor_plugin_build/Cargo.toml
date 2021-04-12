@@ -1,0 +1,10 @@
+[package]
+name = "valor_plugin_build"
+version = "0.1.0"
+authors = ["Daniel Olano <daniel@olanod.com>"]
+edition = "2018"
+
+[dependencies]
+quote = "1.0.7"
+syn = { version = "1.0.48", default-features = false, features = ["full", "parsing"] }
+
