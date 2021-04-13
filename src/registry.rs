@@ -86,7 +86,7 @@ where
             Post => {
                 let plugin = request.body_json().await?;
                 let factory = self.loader.load(&plugin).await?;
-                let handler = factory();
+                let handler = factory().await?;
                 self.registry.borrow_mut().register(plugin, handler);
                 let res: Response = StatusCode::Created.into();
                 Ok(res.into())

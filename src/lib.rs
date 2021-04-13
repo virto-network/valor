@@ -20,6 +20,8 @@ mod util;
 
 use alloc::{borrow::ToOwned, boxed::Box, rc::Rc, string::String};
 use core::cell::RefCell;
+use core::future::Future;
+use core::pin::Pin;
 use registry::PluginRegistry;
 #[cfg(feature = "_serde")]
 use serde::{Deserialize, Serialize};
@@ -72,7 +74,9 @@ impl<L: Loader> Runtime<L> {
     /// Uses the configured loader to load and register the provided plugin
     pub async fn load_plugin(&self, plugin: Plugin) -> Result<(), LoadError> {
         let factory = self.loader.load(&plugin).await?;
-        let handler = factory();
+        let handler = factory()
+            .await
+            .map_err(|_| LoadError::InstantiateVlugin(plugin.name().into()))?;
         self.register_plugin(plugin, handler);
         Ok(())
     }
@@ -181,11 +185,13 @@ pub trait Loader: 'static {
     async fn load(&self, plugin: &Plugin) -> Result<VluginFactory, LoadError>;
 }
 
-pub type VluginFactory<'a> = Box<dyn Fn() -> Box<dyn Vlugin> + 'a>;
+type BoxedFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
+pub type VluginFactory<'a> = Box<dyn Fn() -> BoxedFuture<'a, Result<Box<dyn Vlugin>, Error>>>;
 
 /// Errors loading a plugin
 #[derive(Debug)]
 pub enum LoadError {
+    InstantiateVlugin(String),
     NotSupported,
     NotFound,
 }
@@ -198,6 +204,11 @@ impl From<LoadError> for Error {
                 Error::from_str(BadRequest, "Plugin type not supported by loader").into()
             }
             LoadError::NotFound => Error::from_str(NotFound, "Couldn't find plugin").into(),
+            LoadError::InstantiateVlugin(name) => Error::from_str(
+                InternalServerError,
+                "Failed creating an instance of ".to_owned() + &name,
+            )
+            .into(),
         }
     }
 }
@@ -206,7 +217,9 @@ impl From<LoadError> for Error {
 #[async_trait(?Send)]
 impl Loader for () {
     async fn load(&self, _plugin: &Plugin) -> Result<VluginFactory, LoadError> {
-        Ok(Box::new(|| Box::new(())))
+        Ok(Box::new(|| {
+            Box::pin(async { Ok(Box::new(()) as Box<dyn Vlugin>) })
+        }))
     }
 }
 
