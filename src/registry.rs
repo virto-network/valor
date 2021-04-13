@@ -1,9 +1,9 @@
-use crate::{Plugin, Vlugin};
+use crate::{Vlugin, VluginInfo};
 use alloc::{borrow::ToOwned, rc::Rc, string::String};
 use hashbrown::HashMap;
 use path_tree::PathTree;
 
-type PluginHandler = (Plugin, Rc<dyn Vlugin>);
+type PluginHandler = (VluginInfo, Rc<dyn Vlugin>);
 
 /// Plugin to keep track of registered plugins
 pub(crate) struct PluginRegistry {
@@ -25,17 +25,17 @@ impl PluginRegistry {
         Some((plugin.clone(), handler.clone()))
     }
 
-    pub fn register<H: Vlugin + 'static>(&mut self, plugin: impl Into<Plugin>, handler: H) {
+    pub fn register<H: Vlugin + 'static>(&mut self, plugin: impl Into<VluginInfo>, handler: H) {
         let plugin = plugin.into();
-        let prefix = "/".to_owned() + plugin.prefix();
-        let name = plugin.name().to_owned();
+        let prefix = "/".to_owned() + plugin.prefix_or_name();
 
-        self.routes.insert(&prefix, name.clone());
-        self.routes.insert(&(prefix + "/*"), name.clone());
-        self.plugins.insert(name, (plugin, Rc::new(handler)));
+        self.routes.insert(&prefix, plugin.name.clone());
+        self.routes.insert(&(prefix + "/*"), plugin.name.clone());
+        self.plugins
+            .insert(plugin.name.clone(), (plugin, Rc::new(handler)));
     }
 
-    #[cfg(feature = "_serde")]
+    #[cfg(feature = "_serde_")]
     pub fn get_handler<L: crate::Loader>(
         registry: Rc<core::cell::RefCell<Self>>,
         loader: Rc<L>,
@@ -44,15 +44,15 @@ impl PluginRegistry {
     }
 }
 
-#[cfg(feature = "_serde")]
+#[cfg(feature = "_serde_")]
 use alloc::boxed::Box;
-#[cfg(feature = "_serde")]
+#[cfg(feature = "_serde_")]
 struct RegistryHandler<L> {
     registry: Rc<core::cell::RefCell<PluginRegistry>>,
     loader: Rc<L>,
 }
 
-#[cfg(feature = "_serde")]
+#[cfg(feature = "_serde_")]
 #[async_trait::async_trait(?Send)]
 impl<L> crate::Vlugin for RegistryHandler<L>
 where
@@ -84,7 +84,7 @@ where
                     .map_err(|e| crate::Error::Http(e.into()))
             }
             Post => {
-                let plugin = request.body_json().await?;
+                let plugin: VluginInfo = request.body_json().await?;
                 let factory = self.loader.load(&plugin).await?;
                 let handler = factory().await?;
                 self.registry.borrow_mut().register(plugin, handler);

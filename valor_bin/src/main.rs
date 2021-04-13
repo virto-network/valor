@@ -7,6 +7,7 @@ use async_std::{
 };
 use kv_log_macro::{error, info, warn};
 use loader::Loader;
+use serde::Deserialize;
 use std::fs::File;
 use std::path::PathBuf;
 use std::time::Instant;
@@ -30,6 +31,11 @@ struct Opt {
     plugin_file: Option<PathBuf>,
 }
 
+#[derive(Deserialize)]
+struct ConfigFile {
+    plugins: Vec<valor::VluginInfo>,
+}
+
 #[async_std::main]
 async fn main() -> http::Result<()> {
     femme::with_level(femme::LevelFilter::Debug);
@@ -46,10 +52,10 @@ async fn main() -> http::Result<()> {
 
     if opt.plugin_file.is_some() {
         let file = File::open(opt.plugin_file.unwrap()).expect("Plugin file");
-        let plugins: Vec<valor::Plugin> = serde_json::from_reader(file).expect("Plugin list");
-        for p in plugins {
+        let config: ConfigFile = serde_json::from_reader(file).expect("Plugin list");
+        for p in config.plugins {
             runtime
-                .load_plugin(p)
+                .load_plugin(&p)
                 .await
                 .unwrap_or_else(|err| warn!("{:?}", err));
         }

@@ -11,9 +11,10 @@ pub(crate) struct Loader {
 
 #[async_trait(?Send)]
 impl valor::Loader for Loader {
-    async fn load(&self, plugin: &valor::Plugin) -> Result<VluginFactory, valor::LoadError> {
-        match plugin {
-            valor::Plugin::Native { name, path, .. } => {
+    async fn load(&self, plugin: &valor::VluginInfo) -> Result<VluginFactory, valor::LoadError> {
+        match &plugin.r#type {
+            valor::VluginType::Native { path } => {
+                let name = &plugin.name;
                 if let Some(factory) = self.get_factory(name) {
                     return Ok(factory);
                 }

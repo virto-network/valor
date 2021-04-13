@@ -3,7 +3,7 @@ use js_sys::{Function, Promise};
 use log::{debug, warn};
 use valor::{
     web::{into_js_request, into_response},
-    Plugin, Request, RequestHandler, Response,
+    Request, RequestHandler, Response, VluginType,
 };
 use wasm_bindgen::{prelude::*, JsCast};
 use wasm_bindgen_futures::JsFuture;
@@ -23,9 +23,9 @@ extern "C" {
 impl valor::Loader for Loader {
     type Handler = JsHandler;
 
-    async fn load(&self, plugin: &Plugin) -> valor::LoadResult<Self> {
+    async fn load(&self, plugin: &VluginType) -> valor::LoadResult<Self> {
         match plugin {
-            Plugin::Web { url, name, .. } => {
+            VluginType::Web { url, name, .. } => {
                 debug!("loading plugin {} from {}", name, url);
                 let handler = load_handler(url.as_str()).await.map_err(|_| {
                     warn!("failed loading {}", name);

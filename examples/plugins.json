@@ -1,0 +1,8 @@
+{
+  "plugins": [
+    { "type": "native", "name": "hello_plugin" },
+    { "type": "native", "name": "hello_plugin", "prefix": "hello" },
+    { "type": "native", "name": "with_state", "config": "Alice" },
+    { "type": "native", "name": "with_state", "config": "Bob" }
+  ]
+}

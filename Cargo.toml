@@ -13,7 +13,7 @@ http-types = "2.10.0"
 path-tree = "0.1.12"
 hashbrown = "0.11.0"
 serde = { version = "1.0.124", default-features = false, features = ["alloc", "derive"], optional = true }
-serde_json = { version = "1.0.64", default-features = false, features = ["alloc"], optional = true }
+serde_json = { version = "1.0.64", default-features = false, features = ["alloc"] }
 valor_plugin = { version = "0.4.0-alpha.0", path = "./valor_plugin", optional = true }
 
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
@@ -39,9 +39,9 @@ features = ["RequestInit", "Request", "ResponseInit", "Response", "Headers"]
 wasm-bindgen-test = "0.3.21"
 
 [features]
-_serde = ["serde", "serde_json"]
+_serde_ = ["serde"]
 util = ["valor_plugin"]
-native = ["_serde"]
+native = ["_serde_"]
 web = [
 	"util",
 	"wasm-bindgen", 

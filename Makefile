@@ -27,9 +27,9 @@ runtime_web: $(OUT_DIR)/valor.js
 	@echo "init('valor.wasm');" >> $<
 	@cp $(basename $(<F))_web/*.{js,html} $(OUT_DIR)
 
-plugins_native: $(PLUGINS:%=$(OUT_DIR)/plugins/%)
+plugins_native: clean_plugins $(PLUGINS:%=$(OUT_DIR)/plugins/%)
 
-plugins_web: $(PLUGINS:%=$(OUT_DIR)/plugins/%.js)
+plugins_web: clean_plugins $(PLUGINS:%=$(OUT_DIR)/plugins/%.js)
 
 $(OUT_DIR)/%: $(NATIVE)
 	@mkdir -p $(@D); cp $^ $@

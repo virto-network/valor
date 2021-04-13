@@ -23,7 +23,7 @@ use core::cell::RefCell;
 use core::future::Future;
 use core::pin::Pin;
 use registry::PluginRegistry;
-#[cfg(feature = "_serde")]
+#[cfg(feature = "_serde_")]
 use serde::{Deserialize, Serialize};
 
 pub use async_trait::async_trait;
@@ -72,23 +72,20 @@ impl<L: Loader> Runtime<L> {
     }
 
     /// Uses the configured loader to load and register the provided plugin
-    pub async fn load_plugin(&self, plugin: Plugin) -> Result<(), LoadError> {
+    pub async fn load_plugin(&self, plugin: &VluginInfo) -> Result<(), LoadError> {
         let factory = self.loader.load(&plugin).await?;
         let handler = factory()
             .await
-            .map_err(|_| LoadError::InstantiateVlugin(plugin.name().into()))?;
+            .map_err(|_| LoadError::InstantiateVlugin(plugin.name.clone()))?;
         self.register_plugin(plugin, handler);
         Ok(())
     }
 
     /// Expose the plugin registry as an endpoint on `_plugins` to add more plugins dynamically
-    #[cfg(feature = "_serde")]
+    #[cfg(feature = "_serde_")]
     pub fn with_registry(self) -> Self {
         self.register_plugin(
-            Plugin::Static {
-                name: "registry".into(),
-                prefix: Some("_plugins".into()),
-            },
+            ("registry".into(), "_plugins".into()),
             PluginRegistry::get_handler(self.registry.clone(), self.loader.clone()),
         );
         self
@@ -101,7 +98,7 @@ impl<L: Loader> Runtime<L> {
     }
 
     /// Adds a plugin with its handler to the internal registry
-    pub fn with_plugin<H>(self, plugin: impl Into<Plugin>, handler: H) -> Self
+    pub fn with_plugin<H>(self, plugin: impl Into<VluginInfo>, handler: H) -> Self
     where
         H: Vlugin + 'static,
     {
@@ -109,7 +106,7 @@ impl<L: Loader> Runtime<L> {
         self
     }
 
-    fn register_plugin<H>(&self, plugin: impl Into<Plugin>, handler: H)
+    fn register_plugin<H>(&self, plugin: impl Into<VluginInfo>, handler: H)
     where
         H: Vlugin + 'static,
     {
@@ -147,7 +144,7 @@ impl<L> Vlugin for Runtime<L> {
             .url()
             .path()
             .trim_start_matches('/')
-            .strip_prefix(plugin.prefix())
+            .strip_prefix(plugin.prefix_or_name())
             .expect("prefix")
             .to_owned();
         request.url_mut().set_path(&without_prefix);
@@ -155,7 +152,7 @@ impl<L> Vlugin for Runtime<L> {
         handler.on_msg(request.into()).await.map(|out| match out {
             Answer::Http(mut res) => {
                 res.append_header("x-correlation-id", req_id);
-                res.append_header("x-valor-plugin", plugin.name());
+                res.append_header("x-valor-plugin", plugin.name);
                 res.into()
             }
             _ => Answer::Pong,
@@ -182,7 +179,7 @@ impl<L> Clone for Runtime<L> {
 #[async_trait(?Send)]
 pub trait Loader: 'static {
     /// Loads the given `plugin`
-    async fn load(&self, plugin: &Plugin) -> Result<VluginFactory, LoadError>;
+    async fn load(&self, plugin: &VluginInfo) -> Result<VluginFactory, LoadError>;
 }
 
 type BoxedFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
@@ -216,87 +213,82 @@ impl From<LoadError> for Error {
 /// A dummy loader
 #[async_trait(?Send)]
 impl Loader for () {
-    async fn load(&self, _plugin: &Plugin) -> Result<VluginFactory, LoadError> {
+    async fn load(&self, _plugin: &VluginInfo) -> Result<VluginFactory, LoadError> {
         Ok(Box::new(|| {
             Box::pin(async { Ok(Box::new(()) as Box<dyn Vlugin>) })
         }))
     }
 }
 
-/// Plugin information
+/// Plugin info
+#[cfg_attr(feature = "_serde_", derive(Serialize, Deserialize))]
+#[derive(Debug, Clone)]
+pub struct VluginInfo {
+    /// Name of the plugin
+    pub name: String,
+    /// Url prefix where the plugin is mounted, defaults to the name
+    #[cfg_attr(feature = "_serde_", serde(skip_serializing_if = "Option::is_none"))]
+    pub prefix: Option<String>,
+    /// What kind of plugin
+    #[cfg_attr(feature = "_serde_", serde(flatten))]
+    pub r#type: VluginType,
+    /// Environment configuration to pass down to the plugin instance
+    #[cfg_attr(feature = "_serde_", serde(skip_serializing_if = "Option::is_none"))]
+    pub config: Option<serde_json::Value>, // NOTE this makes the core dependent on serde
+}
+
+impl VluginInfo {
+    fn prefix_or_name(&self) -> &str {
+        self.prefix
+            .as_ref()
+            .map(|p| p.as_str())
+            .unwrap_or_else(|| &self.name)
+            .trim_matches(&['/', ' '][..])
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(
-    feature = "_serde",
+    feature = "_serde_",
     derive(Serialize, Deserialize),
     serde(tag = "type", rename_all = "snake_case")
 )]
-pub enum Plugin {
+pub enum VluginType {
     /// Plugin that comes with the runtime
-    Static {
-        name: String,
-        prefix: Option<String>,
-    },
+    Static,
     /// Natively compiled Rust plugin
     Native {
-        /// Name
-        name: String,
-        /// Path
-        #[cfg_attr(feature = "_serde", serde(skip_serializing_if = "Option::is_none"))]
+        #[cfg_attr(feature = "_serde_", serde(skip_serializing_if = "Option::is_none"))]
         path: Option<String>,
-        /// Url prefix where the plugin is mounted, defaults to the name
-        #[cfg_attr(feature = "_serde", serde(skip_serializing_if = "Option::is_none"))]
-        prefix: Option<String>,
     },
     /// Web script or WASM
-    Web {
-        /// Name
-        name: String,
-        /// Url of the JS script
-        url: String,
-        /// Url prefix where the plugin is mounted, defaults to the name
-        #[cfg_attr(feature = "_serde", serde(skip_serializing_if = "Option::is_none"))]
-        prefix: Option<String>,
-    },
+    Web { url: String },
 }
 
-impl Plugin {
-    #[inline]
-    fn name(&self) -> &str {
-        &match self {
-            Self::Static { name, .. } => name,
-            Self::Native { name, .. } => name,
-            Self::Web { name, .. } => name,
-        }
-    }
-
-    #[inline]
-    fn prefix(&self) -> &str {
-        match self {
-            Self::Static { prefix, .. } => prefix,
-            Self::Native { prefix, .. } => prefix,
-            Self::Web { prefix, .. } => prefix,
-        }
-        .as_ref()
-        .map(|p| p.as_str())
-        .unwrap_or_else(|| self.name())
-        .trim_matches(&['/', ' '][..])
+impl From<&VluginInfo> for VluginInfo {
+    fn from(v: &VluginInfo) -> Self {
+        v.clone()
     }
 }
 
-impl From<&str> for Plugin {
+impl From<&str> for VluginInfo {
     fn from(name: &str) -> Self {
-        Plugin::Static {
+        VluginInfo {
             name: name.into(),
             prefix: Some("_".to_owned() + name),
+            r#type: VluginType::Static,
+            config: None,
         }
     }
 }
 
-impl From<(&str, &str)> for Plugin {
+impl From<(&str, &str)> for VluginInfo {
     fn from((name, prefix): (&str, &str)) -> Self {
-        Plugin::Static {
+        VluginInfo {
             name: name.into(),
             prefix: Some(prefix.into()),
+            r#type: VluginType::Static,
+            config: None,
         }
     }
 }
