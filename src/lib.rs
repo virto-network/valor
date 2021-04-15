@@ -11,12 +11,12 @@
 extern crate alloc;
 extern crate core;
 
-mod message_handler;
 #[cfg(feature = "proxy")]
 mod proxy;
 mod registry;
 #[cfg(feature = "util")]
 mod util;
+mod vlugin;
 
 use alloc::{borrow::ToOwned, boxed::Box, rc::Rc, string::String};
 use core::future::Future;
@@ -28,9 +28,9 @@ use serde::{Deserialize, Serialize};
 
 pub use async_trait::async_trait;
 pub use http_types as http;
-pub use message_handler::*;
 #[cfg(feature = "util")]
 pub use util::*;
+pub use vlugin::*;
 
 /// The runtime is a "Vlugin" itself that serves as the main entry point for
 /// dispatching incoming messages to vlugins registered under a specific URL pattern.
