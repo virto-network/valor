@@ -2,7 +2,7 @@ use valor::*;
 
 #[vlugin]
 pub async fn on_create(cx: &mut Context) {
-    cx.set("some state");
+    cx.set("hello! ");
 }
 
 pub async fn on_request(cx: &Context, _req: http::Request) -> http::Result<http::Response> {
@@ -11,5 +11,6 @@ pub async fn on_request(cx: &Context, _req: http::Request) -> http::Result<http:
             http::StatusCode::InternalServerError,
             "Not possible",
         ))
-        .map(|s| s.to_string().into())
+        .map(|s| s.to_string() + cx.config().unwrap().as_str().unwrap())
+        .map(Into::into)
 }

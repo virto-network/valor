@@ -62,7 +62,7 @@ async fn run(opt: Opt) -> Result<(), Box<dyn std::error::Error>> {
             runtime
                 .load_plugin(p)
                 .await
-                .unwrap_or_else(|err| warn!("{:?}", err));
+                .unwrap_or_else(|err| warn!("{}", err));
         }
     }
 

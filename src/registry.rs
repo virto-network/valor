@@ -94,10 +94,10 @@ where
                     .map_err(|e| Error::new(StatusCode::InternalServerError, e).into())
             }
             Post => {
-                let plugin: VluginInfo = request.body_json().await?;
+                let mut plugin: VluginInfo = request.body_json().await?;
                 let name = plugin.name.clone();
                 let factory = self.loader.load(&plugin).await?;
-                let handler = factory().await?;
+                let handler = factory(plugin.config.take()).await?;
                 self.registry
                     .borrow_mut()
                     .register(plugin, handler)
@@ -113,6 +113,9 @@ where
     }
 
     fn context(&self) -> &crate::Context {
+        unimplemented!()
+    }
+    fn context_mut(&mut self) -> &mut crate::Context {
         unimplemented!()
     }
 }

@@ -2,7 +2,7 @@
   "plugins": [
     { "type": "native", "name": "hello_plugin" },
     { "type": "native", "name": "hello", "path": "hello_plugin" },
-    { "type": "native", "name": "with_state", "config": "Alice" },
-    { "type": "native", "name": "with_state", "config": "Bob" }
+    { "type": "native", "name": "hello_alice", "path": "with_state", "config": "Alice" },
+    { "type": "native", "name": "hello_bob", "path": "with_state", "config": "Bob" }
   ]
 }

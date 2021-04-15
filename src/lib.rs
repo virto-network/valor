@@ -72,13 +72,13 @@ impl<L: Loader> Runtime<L> {
     }
 
     /// Uses the configured loader to load and register the provided plugin
-    pub async fn load_plugin(&self, plugin: VluginInfo) -> Result<(), RuntimeError> {
+    pub async fn load_plugin(&self, mut plugin: VluginInfo) -> Result<(), RuntimeError> {
         let factory = self
             .loader
             .load(&plugin)
             .await
             .map_err(|_| RuntimeError::LoadPlugin(plugin.name.clone()))?;
-        let handler = factory()
+        let handler = factory(plugin.config.take())
             .await
             .map_err(|_| RuntimeError::InstantiateVlugin(plugin.name.clone()))?;
         self.register_plugin(plugin, handler)?;
@@ -179,6 +179,10 @@ impl<L> Vlugin for Runtime<L> {
     fn context(&self) -> &Context {
         &self.cx
     }
+
+    fn context_mut(&mut self) -> &mut Context {
+        &mut self.cx
+    }
 }
 
 impl<L> Clone for Runtime<L> {
@@ -203,7 +207,7 @@ impl fmt::Display for RuntimeError {
         match self {
             RuntimeError::InstantiateVlugin(name) => write!(f, "Failed instantiating {}", name),
             RuntimeError::LoadPlugin(name) => write!(f, "Failed loading {}", name),
-            RuntimeError::RegisterPlugin(name) => write!(f, "Failed registering {}", name),
+            RuntimeError::RegisterPlugin(name) => write!(f, "{} already registered", name),
         }
     }
 }
@@ -220,7 +224,8 @@ pub trait Loader: 'static {
 }
 
 type BoxedFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
-pub type VluginFactory<'a> = Box<dyn Fn() -> BoxedFuture<'a, Result<Box<dyn Vlugin>, Error>>>;
+pub type VluginFactory<'a> =
+    Box<dyn Fn(Option<VluginConfig>) -> BoxedFuture<'a, Result<Box<dyn Vlugin>, Error>>>;
 
 /// Errors loading a plugin
 #[derive(Debug)]
@@ -245,7 +250,7 @@ impl From<LoadError> for Error {
 #[async_trait(?Send)]
 impl Loader for () {
     async fn load(&self, _plugin: &VluginInfo) -> Result<VluginFactory, LoadError> {
-        Ok(Box::new(|| {
+        Ok(Box::new(|_cfg| {
             Box::pin(async { Ok(Box::new(()) as Box<dyn Vlugin>) })
         }))
     }
@@ -265,8 +270,10 @@ pub struct VluginInfo {
     pub r#type: VluginType,
     /// Environment configuration to pass down to the plugin instance
     #[cfg_attr(feature = "_serde_", serde(skip_serializing_if = "Option::is_none"))]
-    pub config: Option<serde_json::Value>, // NOTE this makes the core dependent on serde
+    pub config: Option<VluginConfig>, // NOTE this makes the core dependent on serde
 }
+
+pub type VluginConfig = serde_json::Value;
 
 impl VluginInfo {
     fn prefix_or_name(&self) -> &str {

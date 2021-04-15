@@ -25,10 +25,6 @@ impl TryFrom<String> for Proxy {
 
 #[async_trait(?Send)]
 impl Vlugin for Proxy {
-    fn context(&self) -> &Context {
-        unreachable!()
-    }
-
     async fn on_msg(&self, msg: Message) -> Result<Answer, Error> {
         let mut req = match msg {
             Message::Http(req) => req,
@@ -50,6 +46,13 @@ impl Vlugin for Proxy {
         proxied_req.set_body(req.take_body());
 
         Ok(self.client.send(proxied_req).await?.into())
+    }
+
+    fn context_mut(&mut self) -> &mut Context {
+        unreachable!()
+    }
+    fn context(&self) -> &Context {
+        unreachable!()
     }
 }
 

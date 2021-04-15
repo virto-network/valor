@@ -1,4 +1,4 @@
-use crate::{async_trait, http};
+use crate::{async_trait, http, VluginConfig};
 use alloc::boxed::Box;
 use core::{
     any::{Any, TypeId},
@@ -9,9 +9,10 @@ use hashbrown::HashMap;
 
 /// Context allows plugins to pass state to the message handler
 /// and eventually to easily communicate with other plugins.
-#[derive(Debug, Default)]
+#[derive(Default)]
 pub struct Context {
     data: HashMap<TypeId, Box<dyn Any>>,
+    conf: Option<VluginConfig>,
 }
 
 impl Context {
@@ -23,6 +24,25 @@ impl Context {
         self.data
             .get(&TypeId::of::<T>())
             .map(|d| d.downcast_ref::<T>())
+            .flatten()
+    }
+
+    pub fn with_config(&mut self, cfg: VluginConfig) {
+        self.conf.replace(cfg);
+    }
+
+    pub fn config(&self) -> Option<&VluginConfig> {
+        self.conf.as_ref()
+    }
+
+    #[cfg(feature = "_serde_")]
+    pub fn typed_config<'a, C>(&'a self) -> Option<C>
+    where
+        C: serde::Deserialize<'a>,
+    {
+        self.conf
+            .as_ref()
+            .map(|val| C::deserialize(val).ok())
             .flatten()
     }
 }
@@ -49,13 +69,16 @@ impl Context {
 ///         Ok(().into())
 ///     }
 ///
+///     fn context_mut(&mut self) -> &mut Context {
+///         &mut self.0
+///     }
 ///     fn context(&self) -> &Context {
 ///         &self.0
 ///     }
 /// }
 ///
 /// # async fn test() -> Result<(), Error> {
-/// let v = SomeVlugin::create().await?;
+/// let v = SomeVlugin::create(None).await?;
 /// match v.on_msg(().into()).await? {
 ///     Answer::Pong => {},
 ///     _ => panic!("Wrong answer!"),
@@ -65,16 +88,20 @@ impl Context {
 ///
 #[async_trait(?Send)]
 pub trait Vlugin {
-    async fn create() -> Result<Self, Error>
+    async fn create(config: Option<VluginConfig>) -> Result<Self, Error>
     where
         Self: Sized + Default,
     {
-        let mut h = Self::default();
-        h.on_create().await?;
-        Ok(h)
+        let mut v = Self::default();
+        if let Some(config) = config {
+            v.context_mut().with_config(config);
+        }
+        v.on_create().await?;
+        Ok(v)
     }
 
     fn context(&self) -> &Context;
+    fn context_mut(&mut self) -> &mut Context;
 
     /// Hook to do some plugin initialization like setting some shared state
     async fn on_create(&mut self) -> Result<(), Error> {
@@ -97,6 +124,9 @@ where
         (&**self).on_msg(msg).await
     }
 
+    fn context_mut(&mut self) -> &mut Context {
+        (&mut **self).context_mut()
+    }
     fn context(&self) -> &Context {
         (&**self).context()
     }
@@ -132,6 +162,9 @@ where
         Ok(self.0(M::from(msg), self.context()).await?.into())
     }
 
+    fn context_mut(&mut self) -> &mut Context {
+        &mut self.1
+    }
     fn context(&self) -> &Context {
         &self.1
     }
@@ -144,6 +177,9 @@ impl Vlugin for () {
         Ok(Answer::Pong)
     }
 
+    fn context_mut(&mut self) -> &mut Context {
+        unreachable!()
+    }
     fn context(&self) -> &Context {
         unreachable!()
     }

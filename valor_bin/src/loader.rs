@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use kv_log_macro::{debug, warn};
 use libloading::{Library, Symbol};
 use std::{cell::RefCell, collections::HashMap, pin::Pin, rc::Rc};
-use valor::{Error, LoadError, Vlugin, VluginFactory};
+use valor::{Error, LoadError, Vlugin, VluginConfig, VluginFactory};
 
 #[derive(Default)]
 pub(crate) struct Loader {
@@ -20,7 +20,7 @@ impl valor::Loader for Loader {
                 }
 
                 let path = path.as_ref().unwrap_or(name);
-                debug!("loading native plugin {}", path);
+                debug!("loading native plugin {}({})", name, path);
                 let lib = Library::new(path).map_err(|e| {
                     warn!("{}", e);
                     LoadError::NotFound
@@ -38,14 +38,16 @@ impl valor::Loader for Loader {
 }
 
 type Factory<'a> =
-    fn() -> Pin<Box<dyn core::future::Future<Output = Result<Box<dyn Vlugin>, Error>> + 'a>>;
+    fn(
+        Option<VluginConfig>,
+    ) -> Pin<Box<dyn core::future::Future<Output = Result<Box<dyn Vlugin>, Error>> + 'a>>;
 
 impl Loader {
     fn get_factory(&self, name: &str) -> Option<VluginFactory> {
         let lib = self.plugins.borrow().get(name)?.clone();
         let name = name.to_owned();
 
-        Some(Box::new(move || {
+        Some(Box::new(move |cfg| {
             let lib = lib.clone();
             let name = name.clone();
             Box::pin(async move {
@@ -53,7 +55,7 @@ impl Loader {
                 let factory: Symbol<'_, Factory> =
                     unsafe { lib.get(b"instantiate_vlugin") }.expect("Plugin interface");
                 debug!("{} {:?}", name, factory);
-                factory().await
+                factory(cfg).await
             })
         }))
     }

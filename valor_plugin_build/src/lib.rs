@@ -78,6 +78,9 @@ pub fn build() {
                 #req_result.map(|res| valor::Answer::from(res))
             }
 
+            fn context_mut(&mut self) -> &mut valor::Context {
+                &mut self.0
+            }
             fn context(&self) -> &valor::Context {
                 &self.0
             }
