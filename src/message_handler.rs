@@ -215,6 +215,7 @@ impl From<()> for Answer {
 #[derive(Debug)]
 pub enum Error {
     Http(http::Error),
+    Runtime(crate::RuntimeError),
     NotSupported,
 }
 
@@ -223,6 +224,7 @@ impl fmt::Display for Error {
         match self {
             Error::Http(err) => write!(f, "{}", err),
             Error::NotSupported => write!(f, "Not supported"),
+            Error::Runtime(_) => write!(f, "Runtime error"),
         }
     }
 }
@@ -239,5 +241,11 @@ impl From<Error> for http::Error {
 impl From<http::Error> for Error {
     fn from(err: http::Error) -> Self {
         Error::Http(err)
+    }
+}
+
+impl From<crate::RuntimeError> for Error {
+    fn from(err: crate::RuntimeError) -> Self {
+        Error::Runtime(err)
     }
 }

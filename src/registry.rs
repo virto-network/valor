@@ -7,9 +7,12 @@ type PluginHandler = (VluginInfo, Rc<dyn Vlugin>);
 
 /// Plugin to keep track of registered plugins
 pub(crate) struct PluginRegistry {
-    plugins: HashMap<String, PluginHandler>,
+    pub(self) plugins: HashMap<String, PluginHandler>,
     routes: PathTree<String>,
 }
+
+#[derive(Debug)]
+pub(crate) struct RegistrationError;
 
 impl PluginRegistry {
     pub fn new() -> Self {
@@ -19,20 +22,27 @@ impl PluginRegistry {
         }
     }
 
-    pub fn match_plugin_handler(&self, path: &str) -> Option<PluginHandler> {
+    pub fn match_vlugin(&self, path: &str) -> Option<PluginHandler> {
         let (name, _) = self.routes.find(path)?;
         let (plugin, handler) = self.plugins.get(name)?;
         Some((plugin.clone(), handler.clone()))
     }
 
-    pub fn register<H: Vlugin + 'static>(&mut self, plugin: impl Into<VluginInfo>, handler: H) {
-        let plugin = plugin.into();
+    pub fn register<H: Vlugin + 'static>(
+        &mut self,
+        plugin: VluginInfo,
+        handler: H,
+    ) -> Result<(), RegistrationError> {
+        if self.plugins.contains_key(&plugin.name) {
+            return Err(RegistrationError);
+        }
         let prefix = "/".to_owned() + plugin.prefix_or_name();
 
         self.routes.insert(&prefix, plugin.name.clone());
         self.routes.insert(&(prefix + "/*"), plugin.name.clone());
         self.plugins
             .insert(plugin.name.clone(), (plugin, Rc::new(handler)));
+        Ok(())
     }
 
     #[cfg(feature = "_serde_")]
@@ -60,7 +70,7 @@ where
 {
     async fn on_msg(&self, msg: crate::Message) -> Result<crate::Answer, crate::Error> {
         use crate::{
-            http::{headers, mime, Method::*, Response, StatusCode},
+            http::{headers, mime, Error, Method::*, Response, StatusCode},
             Message,
         };
         use alloc::vec::Vec;
@@ -81,13 +91,17 @@ where
                         res.append_header(headers::CONTENT_TYPE, mime::JSON);
                         res.into()
                     })
-                    .map_err(|e| crate::Error::Http(e.into()))
+                    .map_err(|e| Error::new(StatusCode::InternalServerError, e).into())
             }
             Post => {
                 let plugin: VluginInfo = request.body_json().await?;
+                let name = plugin.name.clone();
                 let factory = self.loader.load(&plugin).await?;
                 let handler = factory().await?;
-                self.registry.borrow_mut().register(plugin, handler);
+                self.registry
+                    .borrow_mut()
+                    .register(plugin, handler)
+                    .map_err(|_| Error::from_str(StatusCode::Conflict, name + " already exists"))?;
                 let res: Response = StatusCode::Created.into();
                 Ok(res.into())
             }
@@ -99,7 +113,7 @@ where
     }
 
     fn context(&self) -> &crate::Context {
-        todo!()
+        unimplemented!()
     }
 }
 
@@ -108,30 +122,39 @@ mod tests {
     use super::*;
 
     #[test]
+    fn register_multiple_times_gives_an_error() {
+        let mut registry = PluginRegistry::new();
+        registry.register("foo".into(), ()).unwrap();
+        let res = registry.register("foo".into(), ());
+        assert!(res.is_err());
+        assert_eq!(registry.plugins.len(), 1);
+    }
+
+    #[test]
     fn match_with_leading_slash() {
         let mut registry = PluginRegistry::new();
-        registry.register("foo", ());
-        let handler = registry.match_plugin_handler("/_foo/");
+        registry.register("foo".into(), ()).unwrap();
+        let handler = registry.match_vlugin("/_foo/");
         assert!(handler.is_some());
     }
 
     #[test]
     fn match_without_leading_slash() {
         let mut registry = PluginRegistry::new();
-        registry.register("foo", ());
-        let handler = registry.match_plugin_handler("/_foo");
+        registry.register("foo".into(), ()).unwrap();
+        let handler = registry.match_vlugin("/_foo");
         assert!(handler.is_some());
     }
 
     #[test]
     fn match_all_after_prefix() {
         let mut registry = PluginRegistry::new();
-        registry.register("foo", ());
-        let handler = registry.match_plugin_handler("/_foo/bar");
+        registry.register("foo".into(), ()).unwrap();
+        let handler = registry.match_vlugin("/_foo/bar");
         assert!(handler.is_some());
-        let handler = registry.match_plugin_handler("/_foo/bar/");
+        let handler = registry.match_vlugin("/_foo/bar/");
         assert!(handler.is_some());
-        let handler = registry.match_plugin_handler("/_foo/bar/baz");
+        let handler = registry.match_vlugin("/_foo/bar/baz");
         assert!(handler.is_some());
     }
 }

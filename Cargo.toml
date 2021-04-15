@@ -39,9 +39,10 @@ features = ["RequestInit", "Request", "ResponseInit", "Response", "Headers"]
 wasm-bindgen-test = "0.3.21"
 
 [features]
+std = []
 _serde_ = ["serde"]
 util = ["valor_plugin"]
-native = ["_serde_"]
+native = ["_serde_", "std"]
 web = [
 	"util",
 	"wasm-bindgen", 

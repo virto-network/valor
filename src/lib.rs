@@ -6,7 +6,7 @@
 //! - Use `valor_web` as a script imported from the main document or a worker
 //! in your web application to have a local API powered by a service worker.
 
-#![cfg_attr(not(test), no_std)]
+#![cfg_attr(all(not(test), not(feature = "std")), no_std)]
 
 extern crate alloc;
 extern crate core;
@@ -19,9 +19,9 @@ mod registry;
 mod util;
 
 use alloc::{borrow::ToOwned, boxed::Box, rc::Rc, string::String};
-use core::cell::RefCell;
 use core::future::Future;
 use core::pin::Pin;
+use core::{cell::RefCell, fmt};
 use registry::PluginRegistry;
 #[cfg(feature = "_serde_")]
 use serde::{Deserialize, Serialize};
@@ -43,7 +43,7 @@ pub use util::*;
 ///     .with_plugin("foo", h(|req: http::Request, _| async move {
 ///         let res: http::Response = req.url().path().into();
 ///         Ok(res)
-///     }));
+///     }))?;
 ///
 /// let mut request = http::Request::new(http::Method::Get, "http://example.com/_foo/bar/baz");
 /// request.insert_header("x-request-id", "123");
@@ -72,46 +72,63 @@ impl<L: Loader> Runtime<L> {
     }
 
     /// Uses the configured loader to load and register the provided plugin
-    pub async fn load_plugin(&self, plugin: &VluginInfo) -> Result<(), LoadError> {
-        let factory = self.loader.load(&plugin).await?;
+    pub async fn load_plugin(&self, plugin: VluginInfo) -> Result<(), RuntimeError> {
+        let factory = self
+            .loader
+            .load(&plugin)
+            .await
+            .map_err(|_| RuntimeError::LoadPlugin(plugin.name.clone()))?;
         let handler = factory()
             .await
-            .map_err(|_| LoadError::InstantiateVlugin(plugin.name.clone()))?;
-        self.register_plugin(plugin, handler);
+            .map_err(|_| RuntimeError::InstantiateVlugin(plugin.name.clone()))?;
+        self.register_plugin(plugin, handler)?;
         Ok(())
     }
 
     /// Expose the plugin registry as an endpoint on `_plugins` to add more plugins dynamically
     #[cfg(feature = "_serde_")]
-    pub fn with_registry(self) -> Self {
+    pub fn with_registry(self) -> Result<Self, RuntimeError> {
         self.register_plugin(
             ("registry".into(), "_plugins".into()),
             PluginRegistry::get_handler(self.registry.clone(), self.loader.clone()),
-        );
-        self
+        )?;
+        Ok(self)
     }
 
     /// Include the built-in health plugin that returns _Ok_ on `_health`
-    pub fn with_health(self) -> Self {
-        self.register_plugin("health", ());
-        self
+    pub fn with_health(self) -> Result<Self, RuntimeError> {
+        self.register_plugin("health", ())?;
+        Ok(self)
     }
 
     /// Adds a plugin with its handler to the internal registry
-    pub fn with_plugin<H>(self, plugin: impl Into<VluginInfo>, handler: H) -> Self
+    pub fn with_plugin<H>(
+        self,
+        plugin: impl Into<VluginInfo>,
+        handler: H,
+    ) -> Result<Self, RuntimeError>
     where
         H: Vlugin + 'static,
     {
-        self.register_plugin(plugin, handler);
-        self
+        self.register_plugin(plugin, handler)?;
+        Ok(self)
     }
 
-    fn register_plugin<H>(&self, plugin: impl Into<VluginInfo>, handler: H)
+    fn register_plugin<H>(
+        &self,
+        plugin: impl Into<VluginInfo>,
+        handler: H,
+    ) -> Result<(), RuntimeError>
     where
         H: Vlugin + 'static,
     {
         let handler: Box<dyn Vlugin> = Box::new(handler);
-        self.registry.borrow_mut().register(plugin.into(), handler);
+        let plugin = plugin.into();
+        let name = plugin.name.clone();
+        self.registry
+            .borrow_mut()
+            .register(plugin, handler)
+            .map_err(|_| RuntimeError::RegisterPlugin(name))
     }
 }
 
@@ -137,7 +154,7 @@ impl<L> Vlugin for Runtime<L> {
         let (plugin, handler) = self
             .registry
             .borrow()
-            .match_plugin_handler(request.url().path())
+            .match_vlugin(request.url().path())
             .ok_or_else(|| Error::from_str(NotFound, "No plugin matched"))?;
 
         let without_prefix = request
@@ -174,6 +191,26 @@ impl<L> Clone for Runtime<L> {
     }
 }
 
+#[derive(Debug)]
+pub enum RuntimeError {
+    InstantiateVlugin(String),
+    LoadPlugin(String),
+    RegisterPlugin(String),
+}
+
+impl fmt::Display for RuntimeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            RuntimeError::InstantiateVlugin(name) => write!(f, "Failed instantiating {}", name),
+            RuntimeError::LoadPlugin(name) => write!(f, "Failed loading {}", name),
+            RuntimeError::RegisterPlugin(name) => write!(f, "Failed registering {}", name),
+        }
+    }
+}
+
+#[cfg(feature = "std")]
+impl std::error::Error for RuntimeError {}
+
 /// A Loader can fetch plugin handlers from various sources
 /// such as the network or the file system
 #[async_trait(?Send)]
@@ -188,7 +225,6 @@ pub type VluginFactory<'a> = Box<dyn Fn() -> BoxedFuture<'a, Result<Box<dyn Vlug
 /// Errors loading a plugin
 #[derive(Debug)]
 pub enum LoadError {
-    InstantiateVlugin(String),
     NotSupported,
     NotFound,
 }
@@ -201,11 +237,6 @@ impl From<LoadError> for Error {
                 Error::from_str(BadRequest, "Plugin type not supported by loader").into()
             }
             LoadError::NotFound => Error::from_str(NotFound, "Couldn't find plugin").into(),
-            LoadError::InstantiateVlugin(name) => Error::from_str(
-                InternalServerError,
-                "Failed creating an instance of ".to_owned() + &name,
-            )
-            .into(),
         }
     }
 }
@@ -263,12 +294,6 @@ pub enum VluginType {
     },
     /// Web script or WASM
     Web { url: String },
-}
-
-impl From<&VluginInfo> for VluginInfo {
-    fn from(v: &VluginInfo) -> Self {
-        v.clone()
-    }
 }
 
 impl From<&str> for VluginInfo {
