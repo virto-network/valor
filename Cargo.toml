@@ -2,7 +2,7 @@
 name = "valor_core"
 description = "Plugin runtime as HTTP API running in server and browser"
 license = "GPL-3.0-or-later"
-version = "0.4.7-beta.0"
+version = "0.5.0-beta.0"
 authors = ["Daniel Olano <daniel@olanod.com>"]
 edition = "2018"
 repository = "https://github.com/valibre-org/valor"
@@ -14,7 +14,7 @@ path-tree = "0.1.12"
 hashbrown = "0.11.0"
 serde = { version = "1.0.124", default-features = false, features = ["alloc", "derive"], optional = true }
 serde_json = { version = "1.0.64", default-features = false, features = ["alloc"] }
-valor_plugin = { version = "0.4.0-alpha.0", path = "./valor_plugin", optional = true }
+valor_plugin = { version = "0.5.0-beta.0", path = "./valor_plugin", optional = true }
 
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
 http-client = { version = "6.3.5", optional = true, features = ["h1_client"] }
