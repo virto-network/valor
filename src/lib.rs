@@ -89,7 +89,7 @@ impl<L: Loader> Runtime<L> {
     #[cfg(feature = "serde")]
     pub fn with_registry(self) -> Result<Self, RuntimeError> {
         self.register_plugin(
-            ("registry".into(), "_plugins".into()),
+            ("registry", "_plugins"),
             PluginRegistry::get_handler(self.registry.clone(), self.loader.clone()),
         )?;
         Ok(self)
@@ -278,9 +278,8 @@ pub type VluginConfig = serde_json::Value;
 impl VluginInfo {
     fn prefix_or_name(&self) -> &str {
         self.prefix
-            .as_ref()
-            .map(|p| p.as_str())
-            .unwrap_or_else(|| &self.name)
+            .as_deref()
+            .unwrap_or(&self.name)
             .trim_matches(&['/', ' '][..])
     }
 }
