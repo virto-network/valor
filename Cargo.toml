@@ -8,11 +8,11 @@ edition = "2018"
 repository = "https://github.com/valibre-org/valor"
 
 [dependencies]
-async-trait = "0.1.48"
-http-types = "2.10.0"
+async-trait = "0.1.49"
+http-types = "2.11.0"
 path-tree = "0.1.12"
-hashbrown = "0.11.0"
-serde = { version = "1.0.124", default-features = false, features = ["alloc", "derive"], optional = true }
+hashbrown = "0.11.2"
+serde = { version = "1.0.125", default-features = false, features = ["alloc", "derive"], optional = true }
 serde_json = { version = "1.0.64", default-features = false, features = ["alloc"] }
 valor_plugin = { version = "0.5.0-beta.0", path = "./valor_plugin", optional = true }
 
@@ -24,19 +24,19 @@ async-std = { version = "1.9.0", features = ["attributes"] }
 mockito = "0.30.0"
 
 [target.'cfg(target_arch="wasm32")'.dependencies]
-wasm-bindgen = { version = "0.2.71", optional = true }
-js-sys = { version = "0.3.48", optional = true }
-wasm-bindgen-futures = { version = "0.4.21", optional = true }
+wasm-bindgen = { version = "0.2.73", optional = true }
+js-sys = { version = "0.3.50", optional = true }
+wasm-bindgen-futures = { version = "0.4.23", optional = true }
 wee_alloc = { version = "0.4.5", optional = true }
 http-client = { version = "6.3.5", optional = true, features = ["wasm_client"] }
 
 [target.'cfg(target_arch="wasm32")'.dependencies.web-sys]
-version = "0.3.48"
+version = "0.3.50"
 optional = true
 features = ["RequestInit", "Request", "ResponseInit", "Response", "Headers"]
 
 [target.'cfg(target_arch="wasm32")'.dev-dependencies]
-wasm-bindgen-test = "0.3.21"
+wasm-bindgen-test = "0.3.23"
 
 [features]
 std = []

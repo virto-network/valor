@@ -5,6 +5,6 @@ authors = ["Daniel Olano <daniel@olanod.com>"]
 edition = "2018"
 
 [dependencies]
-quote = "1.0.7"
-syn = { version = "1.0.48", default-features = false, features = ["full", "parsing"] }
+quote = "1.0.9"
+syn = { version = "1.0.69", default-features = false, features = ["full", "parsing"] }
 

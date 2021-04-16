@@ -21,7 +21,7 @@ impl valor::Loader for Loader {
 
                 let path = path.as_ref().unwrap_or(name);
                 debug!("loading native plugin {}({})", name, path);
-                let lib = Library::new(path).map_err(|e| {
+                let lib = unsafe { Library::new(path) }.map_err(|e| {
                     warn!("{}", e);
                     LoadError::NotFound
                 })?;
