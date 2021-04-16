@@ -20,30 +20,34 @@ impl Context {
         self.data.insert(data.type_id(), Box::new(data));
     }
 
-    pub fn get<T: 'static>(&self) -> Option<&T> {
+    pub fn try_get<T: 'static>(&self) -> Option<&T> {
         self.data
             .get(&TypeId::of::<T>())
             .map(|d| d.downcast_ref::<T>())
             .flatten()
     }
 
+    pub fn get<T: 'static>(&self) -> &T {
+        self.try_get().expect("user knows what was set")
+    }
+
     pub fn with_config(&mut self, cfg: VluginConfig) {
         self.conf.replace(cfg);
     }
 
-    pub fn config(&self) -> Option<&VluginConfig> {
+    pub fn raw_config(&self) -> Option<&VluginConfig> {
         self.conf.as_ref()
     }
 
-    #[cfg(feature = "_serde_")]
-    pub fn typed_config<'a, C>(&'a self) -> Option<C>
+    #[cfg(feature = "serde")]
+    pub fn config<'a, C>(&'a self) -> C
     where
-        C: serde::Deserialize<'a>,
+        C: crate::Deserialize<'a>,
     {
-        self.conf
-            .as_ref()
+        self.raw_config()
             .map(|val| C::deserialize(val).ok())
             .flatten()
+            .expect("user knows the config")
     }
 }
 

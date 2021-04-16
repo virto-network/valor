@@ -45,7 +45,7 @@ impl PluginRegistry {
         Ok(())
     }
 
-    #[cfg(feature = "_serde_")]
+    #[cfg(feature = "serde")]
     pub fn get_handler<L: crate::Loader>(
         registry: Rc<core::cell::RefCell<Self>>,
         loader: Rc<L>,
@@ -54,15 +54,15 @@ impl PluginRegistry {
     }
 }
 
-#[cfg(feature = "_serde_")]
+#[cfg(feature = "serde")]
 use alloc::boxed::Box;
-#[cfg(feature = "_serde_")]
+#[cfg(feature = "serde")]
 struct RegistryHandler<L> {
     registry: Rc<core::cell::RefCell<PluginRegistry>>,
     loader: Rc<L>,
 }
 
-#[cfg(feature = "_serde_")]
+#[cfg(feature = "serde")]
 #[async_trait::async_trait(?Send)]
 impl<L> crate::Vlugin for RegistryHandler<L>
 where

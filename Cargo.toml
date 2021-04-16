@@ -40,9 +40,8 @@ wasm-bindgen-test = "0.3.23"
 
 [features]
 std = []
-_serde_ = ["serde"]
 util = ["valor_plugin"]
-native = ["_serde_", "std"]
+native = ["serde", "std"]
 web = [
 	"util",
 	"wasm-bindgen", 

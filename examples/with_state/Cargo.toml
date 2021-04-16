@@ -6,7 +6,7 @@ edition = "2018"
 publish = false
 
 [dependencies]
-valor = { path = "../..", package = "valor_core", features = ["util"] }
+valor = { path = "../..", package = "valor_core", features = ["util", "serde"] }
 
 [build-dependencies]
 vlugin = { path = "../../valor_plugin_build", package = "valor_plugin_build" }

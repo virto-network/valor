@@ -23,11 +23,11 @@ use core::future::Future;
 use core::pin::Pin;
 use core::{cell::RefCell, fmt};
 use registry::PluginRegistry;
-#[cfg(feature = "_serde_")]
-use serde::{Deserialize, Serialize};
 
 pub use async_trait::async_trait;
 pub use http_types as http;
+#[cfg(feature = "serde")]
+pub use serde::{Deserialize, Serialize};
 #[cfg(feature = "util")]
 pub use util::*;
 pub use vlugin::*;
@@ -86,7 +86,7 @@ impl<L: Loader> Runtime<L> {
     }
 
     /// Expose the plugin registry as an endpoint on `_plugins` to add more plugins dynamically
-    #[cfg(feature = "_serde_")]
+    #[cfg(feature = "serde")]
     pub fn with_registry(self) -> Result<Self, RuntimeError> {
         self.register_plugin(
             ("registry".into(), "_plugins".into()),
@@ -257,19 +257,19 @@ impl Loader for () {
 }
 
 /// Plugin info
-#[cfg_attr(feature = "_serde_", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Debug, Clone)]
 pub struct VluginInfo {
     /// Name of the plugin
     pub name: String,
     /// Url prefix where the plugin is mounted, defaults to the name
-    #[cfg_attr(feature = "_serde_", serde(skip_serializing_if = "Option::is_none"))]
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub prefix: Option<String>,
     /// What kind of plugin
-    #[cfg_attr(feature = "_serde_", serde(flatten))]
+    #[cfg_attr(feature = "serde", serde(flatten))]
     pub r#type: VluginType,
     /// Environment configuration to pass down to the plugin instance
-    #[cfg_attr(feature = "_serde_", serde(skip_serializing_if = "Option::is_none"))]
+    #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
     pub config: Option<VluginConfig>, // NOTE this makes the core dependent on serde
 }
 
@@ -287,7 +287,7 @@ impl VluginInfo {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[cfg_attr(
-    feature = "_serde_",
+    feature = "serde",
     derive(Serialize, Deserialize),
     serde(tag = "type", rename_all = "snake_case")
 )]
@@ -296,7 +296,7 @@ pub enum VluginType {
     Static,
     /// Natively compiled Rust plugin
     Native {
-        #[cfg_attr(feature = "_serde_", serde(skip_serializing_if = "Option::is_none"))]
+        #[cfg_attr(feature = "serde", serde(skip_serializing_if = "Option::is_none"))]
         path: Option<String>,
     },
     /// Web script or WASM
