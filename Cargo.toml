@@ -10,7 +10,7 @@ repository = "https://github.com/valibre-org/valor"
 [dependencies]
 async-trait = "0.1.49"
 http-types = "2.11.0"
-path-tree = "0.1.12"
+path-tree = { version = "0.1.12", optional = true }
 hashbrown = "0.11.2"
 serde = { version = "1.0.125", default-features = false, features = ["alloc", "derive"], optional = true }
 serde_json = { version = "1.0.64", default-features = false, features = ["alloc"] }
@@ -40,9 +40,11 @@ wasm-bindgen-test = "0.3.23"
 
 [features]
 std = []
+runtime = ["path-tree"]
 util = ["valor_plugin"]
-native = ["serde", "std"]
+native = ["runtime", "serde", "std"]
 web = [
+	"runtime",
 	"util",
 	"wasm-bindgen", 
 	"wasm-bindgen-futures", 

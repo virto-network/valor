@@ -12,6 +12,7 @@ extern crate core;
 
 #[cfg(feature = "proxy")]
 mod proxy;
+#[cfg(feature = "runtime")]
 pub mod runtime;
 #[cfg(feature = "util")]
 mod util;
@@ -32,6 +33,7 @@ pub type VluginConfig = serde_json::Value;
 #[derive(Debug)]
 pub enum Error {
     Http(http::Error),
+    #[cfg(feature = "runtime")]
     Runtime(runtime::Error),
     NotSupported,
 }
@@ -41,6 +43,7 @@ impl fmt::Display for Error {
         match self {
             Error::Http(err) => write!(f, "{}", err),
             Error::NotSupported => write!(f, "Not supported"),
+            #[cfg(feature = "runtime")]
             Error::Runtime(_) => write!(f, "Runtime error"),
         }
     }
@@ -61,6 +64,7 @@ impl From<http::Error> for Error {
     }
 }
 
+#[cfg(feature = "runtime")]
 impl From<runtime::Error> for Error {
     fn from(err: runtime::Error) -> Self {
         Error::Runtime(err)
