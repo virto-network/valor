@@ -92,7 +92,13 @@ async fn accept(stream: TcpStream, runtime: Runtime) -> Result<(), valor::Error>
         let method = req.method();
         let path = req.url().path().to_string();
 
-        let res: http::Response = runtime.on_msg(req.into()).await?.into();
+        let res: http::Response = match runtime.on_msg(req.into()).await {
+            Ok(res) => res.into(),
+            Err(err) => match err {
+                valor::Error::Http(err) => err.status().into(),
+                err => return Err(err.into()),
+            },
+        };
 
         let id = res
             .header("x-correlation-id")
