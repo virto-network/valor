@@ -1,4 +1,4 @@
-# Valiu Open Runtime ![Docs](https://docs.rs/valor_core/badge.svg)
+# Valiu Open Runtime [![Docs](https://docs.rs/valor_core/badge.svg)](https://docs.rs/valor_core)
 
 A plugin based system that allows combining several independently developed Javascript, WebAssembly or native modules under a single API(HTTP only initially). 
 "Vlugins" are simple message handlers that can run natively or in the Web and are recommended to use web friendly dependencies, like following the Web Worker API, so that the same file can run unchanged in the server as well as in the browser(intercepting HTTP calls from a service worker).
