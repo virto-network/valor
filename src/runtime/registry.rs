@@ -1,9 +1,10 @@
-use crate::{Vlugin, VluginInfo};
+use super::VluginDef;
+use crate::Vlugin;
 use alloc::{borrow::ToOwned, rc::Rc, string::String};
 use hashbrown::HashMap;
 use path_tree::PathTree;
 
-type PluginHandler = (VluginInfo, Rc<dyn Vlugin>);
+type PluginHandler = (VluginDef, Rc<dyn Vlugin>);
 
 /// Plugin to keep track of registered plugins
 pub(crate) struct PluginRegistry {
@@ -30,7 +31,7 @@ impl PluginRegistry {
 
     pub fn register<H: Vlugin + 'static>(
         &mut self,
-        plugin: VluginInfo,
+        plugin: VluginDef,
         handler: H,
     ) -> Result<(), RegistrationError> {
         if self.plugins.contains_key(&plugin.name) {
@@ -46,7 +47,7 @@ impl PluginRegistry {
     }
 
     #[cfg(feature = "serde")]
-    pub fn get_handler<L: crate::Loader>(
+    pub fn get_handler<L: super::Loader>(
         registry: Rc<core::cell::RefCell<Self>>,
         loader: Rc<L>,
     ) -> impl crate::Vlugin {
@@ -66,7 +67,7 @@ struct RegistryHandler<L> {
 #[async_trait::async_trait(?Send)]
 impl<L> crate::Vlugin for RegistryHandler<L>
 where
-    L: crate::Loader,
+    L: super::Loader,
 {
     async fn on_msg(&self, msg: crate::Message) -> Result<crate::Answer, crate::Error> {
         use crate::{
@@ -94,7 +95,7 @@ where
                     .map_err(|e| Error::new(StatusCode::InternalServerError, e).into())
             }
             Post => {
-                let mut plugin: VluginInfo = request.body_json().await?;
+                let mut plugin: VluginDef = request.body_json().await?;
                 let name = plugin.name.clone();
                 let factory = self.loader.load(&plugin).await?;
                 let handler = factory(plugin.config.take()).await?;

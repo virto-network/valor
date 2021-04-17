@@ -1,8 +1,7 @@
-use crate::{async_trait, http, VluginConfig};
+use crate::{async_trait, http, Error, VluginConfig};
 use alloc::boxed::Box;
 use core::{
     any::{Any, TypeId},
-    fmt,
     marker::PhantomData,
 };
 use hashbrown::HashMap;
@@ -249,43 +248,5 @@ impl From<http::Response> for Answer {
 impl From<()> for Answer {
     fn from(_: ()) -> Self {
         Answer::Pong
-    }
-}
-
-#[derive(Debug)]
-pub enum Error {
-    Http(http::Error),
-    Runtime(crate::RuntimeError),
-    NotSupported,
-}
-
-impl fmt::Display for Error {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        match self {
-            Error::Http(err) => write!(f, "{}", err),
-            Error::NotSupported => write!(f, "Not supported"),
-            Error::Runtime(_) => write!(f, "Runtime error"),
-        }
-    }
-}
-
-impl From<Error> for http::Error {
-    fn from(err: Error) -> Self {
-        match err {
-            Error::Http(err) => err,
-            _ => http::Error::from_str(http::StatusCode::InternalServerError, ""),
-        }
-    }
-}
-
-impl From<http::Error> for Error {
-    fn from(err: http::Error) -> Self {
-        Error::Http(err)
-    }
-}
-
-impl From<crate::RuntimeError> for Error {
-    fn from(err: crate::RuntimeError) -> Self {
-        Error::Runtime(err)
     }
 }

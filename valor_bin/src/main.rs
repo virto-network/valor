@@ -11,11 +11,12 @@ use serde::Deserialize;
 use std::{fs::File, path::PathBuf, time::Instant};
 use structopt::StructOpt;
 use uuid::Uuid;
+use valor::runtime;
 use valor::{http, Vlugin};
 
 mod loader;
 
-type Runtime = valor::Runtime<Loader>;
+type Runtime = runtime::Runtime<Loader>;
 
 #[derive(StructOpt, Debug)]
 #[structopt(name = "valor")]
@@ -31,7 +32,7 @@ struct Opt {
 
 #[derive(Deserialize)]
 struct ConfigFile {
-    plugins: Vec<valor::VluginInfo>,
+    plugins: Vec<runtime::VluginDef>,
 }
 
 #[async_std::main]

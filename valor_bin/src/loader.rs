@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use kv_log_macro::{debug, warn};
 use libloading::{Library, Symbol};
 use std::{cell::RefCell, collections::HashMap, pin::Pin, rc::Rc};
-use valor::{Error, LoadError, Vlugin, VluginConfig, VluginFactory};
+use valor::{runtime, Vlugin, VluginConfig};
 
 #[derive(Default)]
 pub(crate) struct Loader {
@@ -10,10 +10,13 @@ pub(crate) struct Loader {
 }
 
 #[async_trait(?Send)]
-impl valor::Loader for Loader {
-    async fn load(&self, plugin: &valor::VluginInfo) -> Result<VluginFactory, valor::LoadError> {
+impl runtime::Loader for Loader {
+    async fn load(
+        &self,
+        plugin: &runtime::VluginDef,
+    ) -> Result<runtime::VluginFactory, runtime::Error> {
         match &plugin.r#type {
-            valor::VluginType::Native { path } => {
+            runtime::VluginType::Native { path } => {
                 let name = &plugin.name;
                 if let Some(factory) = self.get_factory(name) {
                     return Ok(factory);
@@ -23,27 +26,29 @@ impl valor::Loader for Loader {
                 debug!("loading native plugin {}({})", name, path);
                 let lib = unsafe { Library::new(path) }.map_err(|e| {
                     warn!("{}", e);
-                    LoadError::NotFound
+                    runtime::Error::LoadVlugin(name.to_owned())
                 })?;
 
                 {
                     self.plugins.borrow_mut().insert(name.into(), Rc::new(lib));
                 }
 
-                self.get_factory(name).ok_or(LoadError::NotFound)
+                self.get_factory(name)
+                    .ok_or(runtime::Error::LoadVlugin(name.to_owned()))
             }
-            _ => Err(LoadError::NotSupported),
+            ty => Err(runtime::Error::VluginNotSupported(ty.to_owned())),
         }
     }
 }
 
-type Factory<'a> =
-    fn(
-        Option<VluginConfig>,
-    ) -> Pin<Box<dyn core::future::Future<Output = Result<Box<dyn Vlugin>, Error>> + 'a>>;
+type Factory<'a> = fn(
+    Option<VluginConfig>,
+) -> Pin<
+    Box<dyn core::future::Future<Output = Result<Box<dyn Vlugin>, valor::Error>> + 'a>,
+>;
 
 impl Loader {
-    fn get_factory(&self, name: &str) -> Option<VluginFactory> {
+    fn get_factory(&self, name: &str) -> Option<runtime::VluginFactory> {
         let lib = self.plugins.borrow().get(name)?.clone();
         let name = name.to_owned();
 
