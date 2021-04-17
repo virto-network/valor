@@ -69,11 +69,13 @@ pub fn build() {
 
         #[valor::async_trait(?Send)]
         impl valor::Vlugin for Vlugin {
-            async fn on_create(&mut self) -> Result<(), valor::Error> {
+            async fn on_create(&mut self) -> core::result::Result<(), valor::Error> {
                 #on_create
             }
 
-            async fn on_msg(&self, req: valor::Message) -> Result<valor::Answer, valor::Error> {
+            async fn on_msg(&self, req: valor::Message) ->
+                core::result::Result<valor::Answer, valor::Error>
+            {
                 let res = crate::on_request(#req_args).await;
                 #req_result.map(|res| valor::Answer::from(res))
             }

@@ -48,9 +48,11 @@ pub fn vlugin(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
             #[cfg(not(target_arch = "wasm32"))]
             #[no_mangle]
-            pub extern "Rust" fn instantiate_vlugin(cfg: Option<valor::VluginConfig>) -> core::pin::Pin<Box<
-                dyn core::future::Future<Output = Result<Box<dyn valor::Vlugin>, valor::Error>>
-            >> {
+            pub extern "Rust" fn instantiate_vlugin(cfg: Option<valor::VluginConfig>) ->
+                core::pin::Pin<Box<dyn core::future::Future<
+                    Output = core::result::Result<Box<dyn valor::Vlugin>, valor::Error>
+                >>>
+            {
                 Box::pin(async {
                     let instance = v::Vlugin::create(cfg).await?;
                     Ok(Box::new(instance) as Box<dyn valor::Vlugin>)
