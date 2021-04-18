@@ -39,14 +39,13 @@ impl Context {
     }
 
     #[cfg(feature = "serde")]
-    pub fn config<'a, C>(&'a self) -> C
+    pub fn config<'a, C>(&'a self) -> Option<C>
     where
         C: crate::Deserialize<'a>,
     {
         self.raw_config()
             .map(|val| C::deserialize(val).ok())
             .flatten()
-            .expect("user knows the config")
     }
 }
 

@@ -2,7 +2,7 @@ use valor::*;
 
 #[vlugin]
 pub async fn on_create(cx: &mut Context) {
-    let someone = cx.config::<String>();
+    let someone = cx.config::<String>().unwrap();
     cx.set(someone + " says hello");
 }
 
