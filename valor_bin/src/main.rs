@@ -1,4 +1,5 @@
-//! Valor vlupin
+//! ValorBin it's the native runtime that is able to load vlugins
+//! from a JSON configuration file and serve incoming HTTP requests.
 
 use async_std::{
     net::{TcpListener, TcpStream},
@@ -111,9 +112,15 @@ async fn accept(stream: TcpStream, runtime: Runtime) -> Result<(), valor::Error>
         let status: u16 = res.status().into();
 
         if !path.starts_with("/_health") {
-            info!("[{}] {} {} {}", plugin, status, method, path, {
-                id: id, status: status, dur: instant.elapsed().as_millis() as u64
-            });
+            if res.status().is_server_error() {
+                warn!("[{}] {} {} {}", plugin, status, method, path, {
+                    id: id, status: status, dur: instant.elapsed().as_millis() as u64
+                });
+            } else {
+                info!("[{}] {} {} {}", plugin, status, method, path, {
+                    id: id, status: status, dur: instant.elapsed().as_millis() as u64
+                });
+            }
         }
 
         Ok(res)

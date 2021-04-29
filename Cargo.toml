@@ -8,7 +8,7 @@ edition = "2018"
 repository = "https://github.com/valibre-org/valor"
 
 [dependencies]
-async-trait = "0.1.49"
+async-trait = "0.1.50"
 http-types = "2.11.0"
 path-tree = { version = "0.1.12", optional = true }
 hashbrown = "0.11.2"
