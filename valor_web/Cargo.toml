@@ -9,7 +9,7 @@ publish = false
 crate-type = ["cdylib", "rlib"]
 
 [dependencies]
-async-trait = "0.1.49"
+async-trait = "0.1.50"
 console_log = { version = "0.2.0", optional = true }
 js-sys = "0.3.50"
 log = "0.4.14"

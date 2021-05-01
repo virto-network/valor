@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use kv_log_macro::{debug, warn};
-use libloading::{Library, Symbol};
+use libloading::{library_filename, Library, Symbol};
 use std::{cell::RefCell, collections::HashMap, pin::Pin, rc::Rc};
 use valor::{runtime, Vlugin, VluginConfig};
 
@@ -22,8 +22,11 @@ impl runtime::Loader for Loader {
                     return Ok(factory);
                 }
 
-                let path = path.as_ref().unwrap_or(name);
-                debug!("loading native plugin {}({})", name, path);
+                let path = path
+                    .as_ref()
+                    .map(Into::into)
+                    .unwrap_or_else(|| library_filename(name));
+                debug!("loading native plugin {}({})", name, path.to_string_lossy());
                 let lib = unsafe { Library::new(path) }.map_err(|e| {
                     warn!("{}", e);
                     runtime::Error::LoadVlugin(name.to_owned())
