@@ -8,35 +8,35 @@ edition = "2018"
 repository = "https://github.com/valibre-org/valor"
 
 [dependencies]
-async-trait = "0.1.50"
-http-types = "2.11.0"
-path-tree = { version = "0.1.12", optional = true }
+async-trait = "0.1.52"
+http-types = { git = "https://github.com/http-rs/http-types.git", branch = "main", default-features = false, features = ["serde"] }
+path-tree = { version = "0.2.2", optional = true }
 hashbrown = "0.11.2"
-serde = { version = "1.0.125", default-features = false, features = ["alloc", "derive"], optional = true }
-serde_json = { version = "1.0.64", default-features = false, features = ["alloc"] }
+serde = { version = "1.0.131", default-features = false, features = ["alloc", "derive"], optional = true }
+serde_json = { version = "1.0.73", default-features = false, features = ["alloc"] }
 valor_plugin = { version = "0.5.1-beta.0", path = "./valor_plugin", optional = true }
 
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
-http-client = { version = "6.3.5", optional = true, features = ["h1_client"] }
+http-client = { version = "6.5.1", optional = true, features = ["h1_client"] }
 
 [dev-dependencies]
-async-std = { version = "1.9.0", features = ["attributes"] }
+async-std = { version = "1.10.0", features = ["attributes"] }
 mockito = "0.30.0"
 
 [target.'cfg(target_arch="wasm32")'.dependencies]
-wasm-bindgen = { version = "0.2.73", optional = true }
-js-sys = { version = "0.3.50", optional = true }
-wasm-bindgen-futures = { version = "0.4.23", optional = true }
+wasm-bindgen = { version = "0.2.78", optional = true }
+js-sys = { version = "0.3.55", optional = true }
+wasm-bindgen-futures = { version = "0.4.28", optional = true }
 wee_alloc = { version = "0.4.5", optional = true }
-http-client = { version = "6.3.5", optional = true, features = ["wasm_client"] }
+http-client = { version = "6.5.1", optional = true, features = ["wasm_client"] }
 
 [target.'cfg(target_arch="wasm32")'.dependencies.web-sys]
-version = "0.3.50"
+version = "0.3.55"
 optional = true
 features = ["RequestInit", "Request", "ResponseInit", "Response", "Headers"]
 
 [target.'cfg(target_arch="wasm32")'.dev-dependencies]
-wasm-bindgen-test = "0.3.23"
+wasm-bindgen-test = "0.3.28"
 
 [features]
 std = []

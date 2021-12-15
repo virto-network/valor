@@ -137,8 +137,10 @@ impl<L> Vlugin for Runtime<L> {
 
         handler.on_msg(request.into()).await.map(|out| match out {
             Answer::Http(mut res) => {
-                res.append_header("x-correlation-id", req_id);
-                res.append_header("x-valor-plugin", plugin.name);
+                res.append_header("x-correlation-id", req_id)
+                    .expect("valid header");
+                res.append_header("x-valor-plugin", plugin.name)
+                    .expect("valid header");
                 res.into()
             }
             _ => Answer::Pong,

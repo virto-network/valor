@@ -5,7 +5,7 @@ pub mod web {
     #[global_allocator]
     static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-    use crate::{Request, Response};
+    use crate::http::{Request, Response};
     use core::pin::Pin;
     use js_sys::{Array, Uint8Array};
     pub use wasm_bindgen;
@@ -59,7 +59,9 @@ pub mod web {
             let name = header.get(0).as_string().unwrap();
             let value = header.get(1).as_string().unwrap();
 
-            request.insert_header(name.as_str(), value.as_str());
+            request
+                .insert_header(name.as_str(), value.as_str())
+                .unwrap();
         }
 
         request
@@ -94,7 +96,9 @@ pub mod web {
             let name = header.get(0).as_string().unwrap();
             let value = header.get(1).as_string().unwrap();
 
-            response.insert_header(name.as_str(), value.as_str());
+            response
+                .insert_header(name.as_str(), value.as_str())
+                .unwrap();
         }
 
         response
