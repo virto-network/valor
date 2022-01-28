@@ -1,0 +1,13 @@
+[package]
+name = "test_plugin"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+wasm-bindgen = { version = "0.2.79", default-features = false }
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+[profile.release]
+opt-level = "s"

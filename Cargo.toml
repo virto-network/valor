@@ -63,6 +63,7 @@ members = [
 
 	"examples/hello_plugin",
 	"examples/with_state",
+	"test_plugin",
 ]
 
 [profile.release.package.valor_web]
