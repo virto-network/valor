@@ -11,24 +11,27 @@ version = "0.5.2-beta.0"
 # async-h1 = "2.3.2"
 # async-std = { version = "1.10.0", features = ["attributes"] }
 # async-trait = "0.1.50"
-femme = "2.1.1"
-kv-log-macro = "1.0.7"
+# femme = "2.1.1"
+# kv-log-macro = "1.0.7"
 # libloading = "0.7.0"
-serde_json = "1.0.78"
-structopt = "0.3.26"
+# serde_json = "1.0.78"
+# structopt = "0.3.26"
 # uuid = { version = "0.8.2", features = ["v4"] }
-valor = { version = "0.5.2-beta.0", path = "..", package = "valor_core", features = ["native"] }
-serde = { version = "1.0.136", default-features = false, features = ["alloc", "derive"] }
+# valor = { version = "0.5.2-beta.0", path = "..", package = "valor_core", features = ["native"] }
+# serde = { version = "1.0.136", default-features = false, features = ["alloc", "derive"] }
 
 deno_core = "0.117.0"
 deno_console = "0.35.0"
-deno_fetch = "0.58.0"
+# deno_fetch = "0.58.0"
 deno_timers = "0.33.0"
 deno_url = "0.35.0"
 deno_web = "0.66.0"
 deno_webidl = "0.35.0"
-tokio = { version = "1.16.1", features = ["macros"] }
+futures-lite = "1.12.0"
+num_cpus = "1.13.1"
 hyper = { version = "0.14", features = ["full"] }
+tokio = "1.17.0"
+glommio = { version = "0.7.0" }
 
 [[bin]]
 name = "deno"
