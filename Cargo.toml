@@ -14,7 +14,6 @@ path-tree = { version = "0.2.2", optional = true }
 hashbrown = "0.11.2"
 serde = { version = "1.0.131", default-features = false, features = ["alloc", "derive"], optional = true }
 serde_json = { version = "1.0.73", default-features = false, features = ["alloc"] }
-valor_plugin = { version = "0.5.1-beta.0", path = "./valor_plugin", optional = true }
 
 [target.'cfg(not(target_arch="wasm32"))'.dependencies]
 http-client = { version = "6.5.1", optional = true, features = ["h1_client"] }
@@ -41,7 +40,7 @@ wasm-bindgen-test = "0.3.28"
 [features]
 std = []
 runtime = ["path-tree"]
-util = ["valor_plugin"]
+util = []
 native = ["runtime", "serde", "std"]
 web = [
 	"runtime",
@@ -55,14 +54,13 @@ web = [
 proxy = ["http-client"]
 
 [workspace]
-default-members = ["valor_bin"]
+default-members = ["native"]
 members = [
-	"valor_bin",
-	"valor_web",
-	"valor_plugin",
+	"native",
+	"web",
+	"embedded",
 
-	"examples/hello_plugin",
-	"examples/with_state",
+	"examples/hello_service",
 ]
 
 [profile.release.package.valor_web]
@@ -70,3 +68,4 @@ opt-level = "s"
 
 [profile.release]
 lto = true
+strip = true
