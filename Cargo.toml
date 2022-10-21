@@ -59,6 +59,7 @@ members = [
 	"native",
 	"web",
 	"embedded",
+	"wasm",
 
 	"examples/hello_service",
 ]
