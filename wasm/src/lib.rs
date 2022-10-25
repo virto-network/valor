@@ -8,78 +8,85 @@ pub use crate::wasmtime::*;
 use anyhow::Result;
 
 pub trait Wasm {
-    type Module<'a>: Module
+    type Module<'a>
     where
         Self: 'a;
 
     fn with_defaults() -> Self;
     fn load(&self, module: &[u8]) -> Result<Self::Module<'_>>;
+    fn run(&self, module: &Self::Module<'_>) -> Result<()>;
 }
 
-pub trait Module {
-    fn start(&self) -> Result<()>;
-}
-
-#[cfg(feature = "wasm3")]
+#[cfg(feature = "embedded")]
 mod wasm3 {
-    use super::{Module, Result, Wasm};
+    use super::{Result, Wasm};
     use wasm3;
     pub use wasm3::Runtime;
+
+    const STACK_SIZE: u32 = 1024 * 2;
 
     impl Wasm for wasm3::Runtime {
         type Module<'a> = wasm3::Module<'a>;
 
         fn with_defaults() -> Self {
-            Self::new(&wasm3::Environment::new().unwrap(), 1024).expect("enough memory")
+            Self::new(&wasm3::Environment::new().unwrap(), STACK_SIZE).expect("enough memory")
         }
 
         fn load(&self, module: &[u8]) -> Result<Self::Module<'_>> {
             let mut m = self.parse_and_load_module(module).unwrap();
-            m.link_wasi();
+            let _ = m.link_wasi();
             Ok(m)
         }
-    }
 
-    impl<'a> Module for wasm3::Module<'a> {
-        fn start(&self) -> anyhow::Result<()> {
-            let start = self.find_function::<(), ()>("_start").expect("has start");
+        fn run(&self, module: &Self::Module<'_>) -> anyhow::Result<()> {
+            let start = module.find_function::<(), ()>("_start").expect("has start");
             start.call().unwrap();
             Ok(())
         }
     }
 }
 
-#[cfg(feature = "wasmtime")]
+#[cfg(feature = "native")]
 mod wasmtime {
-    use super::{Module, Result, Wasm};
-    use once_cell::sync::OnceCell;
-    use wasmtime::{self, Engine, Linker};
-    use wasmtime_wasi::{add_to_linker, WasiCtx};
+    use super::{Result, Wasm};
+    use std::cell::RefCell;
+    use wasmtime::{self, Engine, Linker, Store};
+    use wasmtime_wasi::{add_to_linker, WasiCtx, WasiCtxBuilder};
 
-    static LINKER: OnceCell<Linker<WasiCtx>> = OnceCell::new();
+    pub struct Runtime {
+        linker: RefCell<Linker<WasiCtx>>,
+    }
 
-    pub type Runtime = Engine;
-
-    impl Wasm for Engine {
+    impl Wasm for Runtime {
         type Module<'a> = wasmtime::Module;
 
         fn with_defaults() -> Self {
-            let rt = Default::default();
-            let mut linker = Linker::new(&rt);
-            add_to_linker(&mut linker, |c| c).unwrap();
-            let _ = LINKER.set(linker);
-            rt
+            let engine = Engine::default();
+            let mut linker = Linker::new(&engine);
+            add_to_linker(&mut linker, |c| c).expect("");
+            Runtime {
+                linker: RefCell::new(linker),
+            }
         }
 
         fn load(&self, module: &[u8]) -> Result<Self::Module<'_>> {
-            wasmtime::Module::from_binary(self, module)
+            let linker = self.linker.borrow();
+            wasmtime::Module::from_binary(linker.engine(), module)
         }
-    }
 
-    impl Module for wasmtime::Module {
-        fn start(&self) -> Result<()> {
-            let l = LINKER.get();
-            l.module(&mut store, "", &self);
+        fn run(&self, module: &Self::Module<'_>) -> Result<()> {
+            let cx = WasiCtxBuilder::new()
+                .inherit_stdio()
+                .inherit_args()?
+                .build();
+            let mut linker = self.linker.borrow_mut();
+            let mut store = Store::new(linker.engine(), cx);
+            linker.module(&mut store, "", module)?;
+            linker
+                .get_default(&mut store, "")?
+                .typed::<(), (), _>(&store)?
+                .call(&mut store, ())?;
+            Ok(())
         }
     }
 }

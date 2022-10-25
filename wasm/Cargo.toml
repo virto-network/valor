@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["wasm3"]
+embedded = ["wasm3"]
 native = ["wasmtime", "wasmtime-wasi", "once_cell"]
 
 [dependencies]
