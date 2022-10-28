@@ -1,9 +1,11 @@
 #![feature(once_cell)]
 
-#[cfg(feature = "wasm3")]
+#[cfg(feature = "embedded")]
 pub use crate::wasm3::*;
-#[cfg(feature = "wasmtime")]
+#[cfg(feature = "native")]
 pub use crate::wasmtime::*;
+#[cfg(feature = "web")]
+pub use crate::web::*;
 
 use anyhow::Result;
 
@@ -86,6 +88,47 @@ mod wasmtime {
                 .get_default(&mut store, "")?
                 .typed::<(), (), _>(&store)?
                 .call(&mut store, ())?;
+            Ok(())
+        }
+    }
+}
+
+#[cfg(feature = "web")]
+mod web {
+    use crate::{Result, Wasm};
+    use wasmer::{Instance, Module, Store};
+    use wasmer_wasi::WasiState;
+
+    pub struct Runtime(Store);
+
+    impl Wasm for Runtime {
+        type Module<'a> = Module;
+
+        fn with_defaults() -> Self {
+            Runtime(Store::new())
+        }
+
+        fn load(&self, module: &[u8]) -> Result<Self::Module<'_>> {
+            Module::from_binary(&self.0, module).map_err(anyhow::Error::msg)
+        }
+
+        fn run(&self, module: &Self::Module<'_>) -> Result<()> {
+            let mut env = WasiState::new("service")
+                .finalize()
+                .map_err(anyhow::Error::msg)?;
+            let imports = env.import_object(&module).map_err(anyhow::Error::msg)?;
+            let _ = Instance::new(&module, &imports)
+                .map_err(anyhow::Error::msg)?
+                .exports
+                .get_function("_start")
+                .map_err(anyhow::Error::msg)?
+                .call(&[])
+                .map_err(anyhow::Error::msg)?;
+
+            // let mut out = String::new();
+            // let mut state = env.state();
+            // let stdout = state.fs.stdout_mut().unwrap().as_mut().unwrap();
+            // stdout.read_to_string(&mut out).unwrap();
             Ok(())
         }
     }

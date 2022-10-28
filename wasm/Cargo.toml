@@ -4,12 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
+# default = ["web"]
 embedded = ["wasm3"]
-native = ["wasmtime", "wasmtime-wasi", "once_cell"]
+native = ["wasmtime", "wasmtime-wasi"]
+web = ["wasmer", "wasmer-wasi"]
 
 [dependencies]
+wasm3 = { git = "https://github.com/wasm3/wasm3-rs.git", optional = true }
+
 anyhow = { version = "1.0.66", default-features = false }
 wasmtime = { version = "2.0.0", optional = true }
 wasmtime-wasi = { version = "2.0.0", optional = true }
-wasm3 = { git = "https://github.com/wasm3/wasm3-rs.git", optional = true }
-once_cell = { version = "1.15.0", optional = true }
+
+wasmer = { version = "2.3.0", optional = true, default-features = false, features = ["js", "std"] }
+wasmer-wasi = { version = "2.3.0", optional = true, default-features = false, features = ["js"] }
