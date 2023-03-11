@@ -1,18 +1,19 @@
 [package]
-name = "wasm"
+name = "wasm_runtime"
 version = "0.1.0"
 edition = "2021"
 
 [features]
-# default = ["web"]
+default = ["native"]
 embedded = ["wasm3"]
 native = ["wasmtime", "wasmtime-wasi"]
 web = ["wasmer", "wasmer-wasi"]
 
 [dependencies]
+anyhow = { version = "1.0.66", default-features = false }
+
 wasm3 = { git = "https://github.com/wasm3/wasm3-rs.git", optional = true }
 
-anyhow = { version = "1.0.66", default-features = false }
 wasmtime = { version = "2.0.0", optional = true }
 wasmtime-wasi = { version = "2.0.0", optional = true }
 

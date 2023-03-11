@@ -1,4 +1,4 @@
-use wasm::{Runtime, Wasm};
+use wasm_runtime::{Runtime, Wasm};
 
 fn main() {
     let rt = Runtime::with_defaults();
