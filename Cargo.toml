@@ -3,11 +3,12 @@ name = "valor_core"
 description = "Virto Async Light Open Runtime"
 license = "GPL-3.0-or-later"
 version = "0.6.0"
-authors = ["Daniel Olano <daniel@olanod.com>"]
+authors = ["Daniel Olano <daniel@olanod.com>", "Johan Alexis Duque Cadena <johan.duque@gmail.com>"]
 edition = "2018"
 repository = "https://github.com/valibre-org/valor"
 
 [dependencies]
+clap = { version = "4.1.8", features = ["derive"] }
 embassy-executor = { version = "0.1.0", git = "https://github.com/embassy-rs/embassy", features = ["log", "std", "nightly", "integrated-timers"] }
 embassy-time = { version = "0.1.0", git = "https://github.com/embassy-rs/embassy", features = ["log", "std", "nightly"] }
 embedded-io = { version = "0.4.0", features = ["async", "std"] }

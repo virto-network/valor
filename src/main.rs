@@ -1,11 +1,15 @@
 #![feature(type_alias_impl_trait)]
-
-use std::{collections::HashMap, env, fs, io::stdin};
+// Johan: pregunta a Dani: esto no debería ir en el módulo parsero/mod.rs y no acá?
+use clap::Parser;
 
 use embassy_executor::Spawner;
-// use embassy_time::{Duration, Timer};
-// use log::*;
+use embassy_time::{Duration, Timer};
+use log::*;
+
+use std::{collections::HashMap, fs, io::stdin};
 use wasm_runtime::{Runtime, Wasm};
+
+mod parsero;
 
 #[derive(Debug)]
 struct Plugin<'a> {
@@ -24,12 +28,9 @@ impl<'a> Plugin<'a> {
 
 #[embassy_executor::task]
 async fn run(args: Vec<String>) {
-    // let mut app = Vec::new();
-    // stdin().read_to_end(&mut app).expect("WASM read");
     let mut vec_plugins = HashMap::<&str, Plugin>::new();
-
     for arg in args.iter() {
-        let content_plugin = fs::read(&arg).expect("Epic Fail!, The file doesn't exist!. :(");
+        let content_plugin = fs::read(arg).expect("Epic Fail!, The file doesn't exist!. :(");
         let plugin = Plugin::new(arg.as_str(), content_plugin);
         vec_plugins.insert(arg.as_str(), plugin);
     }
@@ -52,17 +53,17 @@ async fn run(args: Vec<String>) {
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
-    let args: Vec<String> = env::args().skip(1).collect();
-    // let mut plugins_paths = Vec::<&str>::new();
+    // Parse cli inputs (go to parsero)
+    let args = parsero::Args::parse();
 
-    // for i in args {
-    //     plugins_paths.push(&i);
-    // }
+    if false == args.check_plugin_paths() {
+        panic!("Please check the provided paths");
+    }
 
     env_logger::builder()
         .filter_level(log::LevelFilter::Info)
         .format_timestamp_nanos()
         .init();
 
-    spawner.spawn(run(args)).unwrap();
+    spawner.spawn(run(args.plugin_path)).unwrap();
 }
