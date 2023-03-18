@@ -16,8 +16,7 @@ mod plugin;
 async fn run(args: Vec<String>) {
     let mut vec_plugins = HashMap::<&str, plugin::Plugin>::new();
     for arg in args.iter() {
-        let content_plugin = fs::read(arg).expect("Epic Fail!, The file doesn't exist!. :(");
-        let plugin = plugin::Plugin::new(arg.as_str(), content_plugin);
+        let plugin = plugin::Plugin::new(arg.as_str());
         vec_plugins.insert(arg.as_str(), plugin);
     }
 
