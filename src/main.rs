@@ -6,7 +6,7 @@ use embassy_executor::Spawner;
 // use embassy_time::{Duration, Timer};
 // use log::*;
 
-use std::{collections::HashMap, fs, io::stdin};
+use std::io::stdin;
 use wasm_runtime::{Runtime, Wasm};
 
 mod parsero;
@@ -14,11 +14,7 @@ mod plugin;
 
 #[embassy_executor::task]
 async fn run(args: Vec<String>) {
-    let mut vec_plugins = HashMap::<&str, plugin::Plugin>::new();
-    for arg in args.iter() {
-        let plugin = plugin::Plugin::new(arg.as_str());
-        vec_plugins.insert(arg.as_str(), plugin);
-    }
+    let map_plugins = plugin::Plugin::new_map(&args);
 
     let rt = Runtime::with_defaults();
 
@@ -30,7 +26,7 @@ async fn run(args: Vec<String>) {
     let mut input = String::new();
     stdin().read_line(&mut input).unwrap();
     let input = input.trim();
-    let content_plugin = vec_plugins.get(input).unwrap().get_plugin();
+    let content_plugin = map_plugins.get(input).unwrap().get_plugin();
 
     let app = rt.load(content_plugin).unwrap();
     rt.run(&app).unwrap();
