@@ -22,6 +22,12 @@ pub struct Args {
     // Without Option is mandatory a value for the parameter, but with
     // default_value_t it's possible to assign directly a value.
     pub y: u8,
+
+    /// All Active
+    #[arg(short = 'a', long = "all_active", default_value_t = false)]
+    // Without Option is mandatory a value for the parameter, but with
+    // default_value_t it's possible to assign directly a value.
+    pub all_active: bool,
 }
 
 impl Args {
