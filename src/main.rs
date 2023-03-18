@@ -3,35 +3,21 @@
 use clap::Parser;
 
 use embassy_executor::Spawner;
-use embassy_time::{Duration, Timer};
-use log::*;
+// use embassy_time::{Duration, Timer};
+// use log::*;
 
 use std::{collections::HashMap, fs, io::stdin};
 use wasm_runtime::{Runtime, Wasm};
 
 mod parsero;
-
-#[derive(Debug)]
-struct Plugin<'a> {
-    name: &'a str,
-    content: Vec<u8>,
-}
-
-impl<'a> Plugin<'a> {
-    fn new(name: &'a str, content: Vec<u8>) -> Self {
-        Plugin { name, content }
-    }
-    fn get_plugin(&self) -> &[u8] {
-        &self.content
-    }
-}
+mod plugin;
 
 #[embassy_executor::task]
 async fn run(args: Vec<String>) {
-    let mut vec_plugins = HashMap::<&str, Plugin>::new();
+    let mut vec_plugins = HashMap::<&str, plugin::Plugin>::new();
     for arg in args.iter() {
         let content_plugin = fs::read(arg).expect("Epic Fail!, The file doesn't exist!. :(");
-        let plugin = Plugin::new(arg.as_str(), content_plugin);
+        let plugin = plugin::Plugin::new(arg.as_str(), content_plugin);
         vec_plugins.insert(arg.as_str(), plugin);
     }
 

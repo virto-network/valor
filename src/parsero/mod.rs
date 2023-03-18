@@ -1,5 +1,4 @@
 // use clap::Parser;
-use std::io;
 use std::path::Path;
 
 /// Simple module to have cli parser options
