@@ -39,7 +39,7 @@ fn print_banner() {
 #[embassy_executor::task]
 async fn run(paths: Vec<String>, all_active: bool) {
     // let map_plugins = plugin::Plugin::new_map(&paths, all_active);
-    let vec_plugins: Vec<plugin::Plugin> = plugin::Plugin::new_vec(&paths, all_active);
+    let mut vec_plugins: Vec<plugin::Plugin> = plugin::Plugin::new_vec(&paths, all_active);
     let mut vec_active_plugins: Vec<u32> = Vec::new();
 
     let rt = Runtime::with_defaults();
@@ -58,11 +58,13 @@ async fn run(paths: Vec<String>, all_active: bool) {
             .map(|s| s.parse().unwrap())
             .collect();
 
+        // Activate plugins
         for key in 0..vec_active_plugins.len() {
             if vec_plugins.len() <= key {
                 println!("Wrong value provided: {}!. Skipped plugin.", key);
             } else {
-                println!("Loading plugin... {key}");
+                println!("Activating plugin... {key}"); // Replace println with log info
+                vec_plugins[key].active = true;
             }
         }
     }
