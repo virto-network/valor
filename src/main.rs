@@ -58,10 +58,11 @@ async fn run(paths: Vec<String>, all_active: bool) {
             .map(|s| s.parse().unwrap())
             .collect();
 
-        for key in vec_active_plugins.iter() {
-            if vec_plugins.iter().count() < key {
-                // println!("{:?}", vec_plugins.get(key).active);
-                println!("Hey");
+        for key in 0..vec_active_plugins.len() {
+            if vec_plugins.len() <= key {
+                println!("Wrong value provided: {}!. Skipped plugin.", key);
+            } else {
+                println!("Loading plugin... {key}");
             }
         }
     }
