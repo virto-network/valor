@@ -13,7 +13,7 @@ impl<'a> Plugin<'a> {
         Plugin {
             name,
             content,
-            active: false,
+            active,
         }
     }
 
@@ -34,8 +34,7 @@ impl<'a> Plugin<'a> {
     pub fn new_vec(paths: &'a Vec<String>, all_active: bool) -> Vec<Self> {
         let mut vec_plugins: Vec<Self> = Vec::new();
         for path in paths.iter() {
-            let active = if all_active { true } else { false };
-            let plugin = self::Plugin::new(path.as_str(), active);
+            let plugin = self::Plugin::new(path.as_str(), all_active);
             vec_plugins.push(plugin);
         }
         vec_plugins

@@ -40,9 +40,10 @@ fn print_banner() {
 async fn run(paths: Vec<String>, all_active: bool) {
     // let map_plugins = plugin::Plugin::new_map(&paths, all_active);
     let mut vec_plugins: Vec<plugin::Plugin> = plugin::Plugin::new_vec(&paths, all_active);
-    let mut vec_active_plugins: Vec<u32> = Vec::new();
+    let mut vec_active_plugins: Vec<usize> = Vec::new();
 
-    let rt = Runtime::with_defaults();
+    // let rt = Runtime::with_defaults();
+    let mut vec_rt: Vec<Runtime> = Vec::new();
 
     if !all_active {
         println!("Please select the id's of which plugins do you want to load using comma to separate id's like this:");
@@ -58,21 +59,29 @@ async fn run(paths: Vec<String>, all_active: bool) {
             .map(|s| s.parse().unwrap())
             .collect();
 
+        vec_active_plugins.sort();
+        vec_active_plugins.dedup();
+
         // Activate plugins
-        for key in 0..vec_active_plugins.len() {
-            if vec_plugins.len() <= key {
-                println!("Wrong value provided: {}!. Skipped plugin.", key);
-            } else {
-                println!("Activating plugin... {key}"); // Replace println with log info
+        for key in vec_active_plugins {
+            if key < vec_plugins.len() {
                 vec_plugins[key].active = true;
+            } else {
+                // Replace with log message
+                println!("Wrong value provided: {}!. Skipped plugin.", key);
             }
         }
     }
 
-    // let content_plugin = map_plugins.get(input).unwrap().get_plugin();
-
-    // let app = rt.load(content_plugin).unwrap();
-    // rt.run(&app).unwrap();
+    for plugin in vec_plugins {
+        if plugin.active {
+            vec_rt.push(Runtime::with_defaults());
+            println!("Loading wasi app from {}", plugin.name);
+            let content_plugin = plugin.get_plugin();
+            let app = vec_rt[vec_rt.len() - 1].load(content_plugin).unwrap();
+            vec_rt[vec_rt.len() - 1].run(&app).unwrap();
+        }
+    }
 }
 
 #[embassy_executor::main]
