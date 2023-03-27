@@ -1,3 +1,5 @@
 fn main() {
-    println!("Hola Johan")
+    println!("******************************");
+    println!("           Single trigger app!");
+    println!("******************************");
 }

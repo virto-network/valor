@@ -28,6 +28,10 @@ pub struct Args {
     // Without Option is mandatory a value for the parameter, but with
     // default_value_t it's possible to assign directly a value.
     pub all_active: bool,
+
+    /// Quiet
+    #[arg(short = 'q', long = "quiet", default_value_t = false)]
+    pub quiet: bool,
 }
 
 impl Args {

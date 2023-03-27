@@ -28,7 +28,7 @@ opt-level = "s"
 [profile.release]
 lto = true
 strip = true
-# opt-level = 3
+opt-level = "s"
 
 [profile.dev]
 opt-level = 0

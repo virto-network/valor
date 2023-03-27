@@ -1,13 +1,15 @@
 #![feature(type_alias_impl_trait)]
-// Johan: pregunta a Dani: esto no debería ir en el módulo parsero/mod.rs y no acá?
 use clap::Parser;
 
 use embassy_executor::Spawner;
+use log::{info, warn};
 // use embassy_time::{Duration, Timer};
 // use log::*;
 
 use std::io::stdin;
 use std::process::Command;
+use std::thread;
+// use std::time::Duration;
 use wasm_runtime::{Runtime, Wasm};
 
 mod parsero;
@@ -39,14 +41,12 @@ fn print_banner() {
 #[embassy_executor::task]
 async fn run(paths: Vec<String>, all_active: bool) {
     // let map_plugins = plugin::Plugin::new_map(&paths, all_active);
-    let mut vec_plugins: Vec<plugin::Plugin> = plugin::Plugin::new_vec(&paths, all_active);
+    let mut vec_plugins: Vec<plugin::Plugin> = plugin::Plugin::new_vec(paths.clone(), all_active); // Check how to do it well done
     let mut vec_active_plugins: Vec<usize> = Vec::new();
-
-    // let rt = Runtime::with_defaults();
-    let mut vec_rt: Vec<Runtime> = Vec::new();
+    let mut handles = vec![];
 
     if !all_active {
-        println!("Please select the id's of which plugins do you want to load using comma to separate id's like this:");
+        println!("Please select the index of which plugins do you want to load using comma to separate id's like this:");
         println!("\t id1,id2,id3");
         for (index, value) in paths.iter().enumerate() {
             println!("[{}] -> {}", index, value);
@@ -68,27 +68,47 @@ async fn run(paths: Vec<String>, all_active: bool) {
                 vec_plugins[key].active = true;
             } else {
                 // Replace with log message
-                println!("Wrong value provided: {}!. Skipped plugin.", key);
+                warn!("Wrong value provided: {}!. Skipped plugin.", key);
             }
         }
     }
 
     for plugin in vec_plugins {
         if plugin.active {
-            vec_rt.push(Runtime::with_defaults());
-            println!("Loading wasi app from {}", plugin.name);
-            let content_plugin = plugin.get_plugin();
-            let app = vec_rt[vec_rt.len() - 1].load(content_plugin).unwrap();
-            vec_rt[vec_rt.len() - 1].run(&app).unwrap();
+            // vec_rt.push(Runtime::with_defaults());
+            let handle = thread::spawn(move || {
+                info!("Loading wasi app from {}", plugin.name);
+                let rt = Runtime::with_defaults();
+                let content_plugin = plugin.get_plugin();
+                let app = rt.load(content_plugin).unwrap();
+                rt.run(&app).unwrap();
+            });
+            handles.push(handle);
         }
     }
+
+    info!("Después de threads");
+
+    // Detectar kill signal
+    // Si detectada kill signal entonces thread.join aquí.
+    // for t in handles {
+    //     t.join();
+    // }
+    for t in handles {
+        info!("Join de threads!");
+        t.join().unwrap();
+    }
+
+    warn!("Finished embassy run!");
 }
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
     // Parse cli inputs (go to parsero)
-    print_banner();
     let args = parsero::Args::parse();
+    if !args.quiet {
+        print_banner();
+    }
 
     if false == args.check_plugin_paths() {
         panic!("Please check the provided paths");
