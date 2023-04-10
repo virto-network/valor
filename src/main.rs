@@ -2,14 +2,11 @@
 use clap::Parser;
 
 use embassy_executor::Spawner;
+use embassy_time::{Duration, Timer};
 use log::{info, warn};
-// use embassy_time::{Duration, Timer};
-// use log::*;
 
 use std::io::stdin;
 use std::process::Command;
-use std::thread;
-// use std::time::Duration;
 use wasm_runtime::{Runtime, Wasm};
 
 mod parsero;
@@ -38,12 +35,33 @@ fn print_banner() {
     println!("{banner}");
 }
 
+#[embassy_executor::task(pool_size = 10)]
+async fn plugin_run(plugin: plugin::Plugin) {
+    // async fn plugin_run(my_num: u32) {
+    // for _ in 0..5 {
+    //     println!("Hey from concurrent pool {}", my_num);
+    //     Timer::after(Duration::from_millis(1000)).await;
+    // }
+
+    let mut count = 0;
+    loop {
+        if count > 9 {
+            break;
+        } else {
+            count = count + 1;
+        }
+        info!("Loading wasi app from {} count: {count}", plugin.name);
+    }
+    // let rt = Runtime::with_defaults();
+    // let content_plugin = plugin.get_plugin();
+    // let app = rt.load(content_plugin).unwrap();
+    // rt.run(&app).unwrap();
+}
+
 #[embassy_executor::task]
 async fn run(paths: Vec<String>, all_active: bool) {
-    // let map_plugins = plugin::Plugin::new_map(&paths, all_active);
     let mut vec_plugins: Vec<plugin::Plugin> = plugin::Plugin::new_vec(paths.clone(), all_active); // Check how to do it well done
     let mut vec_active_plugins: Vec<usize> = Vec::new();
-    let mut handles = vec![];
 
     if !all_active {
         println!("Please select the index of which plugins do you want to load using comma to separate id's like this:");
@@ -73,31 +91,48 @@ async fn run(paths: Vec<String>, all_active: bool) {
         }
     }
 
-    for plugin in vec_plugins {
-        if plugin.active {
-            // vec_rt.push(Runtime::with_defaults());
-            let handle = thread::spawn(move || {
-                info!("Loading wasi app from {}", plugin.name);
-                let rt = Runtime::with_defaults();
-                let content_plugin = plugin.get_plugin();
-                let app = rt.load(content_plugin).unwrap();
-                rt.run(&app).unwrap();
-            });
-            handles.push(handle);
-        }
-    }
+    // let mut sp_vec = vec![];
+    let sp_vec = [
+        Spawner::for_current_executor().await,
+        Spawner::for_current_executor().await,
+    ];
+
+    sp_vec[0].spawn(plugin_run(vec_plugins[0].clone()));
+    sp_vec[1].spawn(plugin_run(vec_plugins[1].clone()));
+
+    // let mut counter = 0;
+    // for plugin in vec_plugins {
+    //     if plugin.active {
+    //         sp_vec[counter] = Spawner::for_current_executor().await;
+
+    //         // let sp = Spawner::for_current_executor().await;
+    //         info!("Ejecutando plugin: {}", plugin.name);
+    //         sp_vec[counter].spawn(plugin_run(plugin));
+    //         // handles.push(handle);
+    //         counter = counter + 1;
+    //     }
+    // }
+
+    // let sp = Spawner::for_current_executor().await;
+
+    // let sp = [
+    //     Spawner::for_current_executor().await,
+    //     Spawner::for_current_executor().await,
+    // ];
+    // for num in 0..5 {
+    //     sp[0].spawn(plugin_run(num));
+    // }
+
+    // for num2 in 5..10 {
+    //     sp[1].spawn(plugin_run(num2));
+    // }
 
     info!("Después de threads");
 
-    // Detectar kill signal
-    // Si detectada kill signal entonces thread.join aquí.
     // for t in handles {
-    //     t.join();
+    //     info!("Join de threads!");
+    //     t.join().unwrap();
     // }
-    for t in handles {
-        info!("Join de threads!");
-        t.join().unwrap();
-    }
 
     warn!("Finished embassy run!");
 }

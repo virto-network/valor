@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Plugin {
     pub name: String,
     content: Vec<u8>,
@@ -40,3 +40,13 @@ impl Plugin {
         vec_plugins
     }
 }
+
+// impl Copy for Plugin {
+//     fn copy(&self) -> Self {
+//         Plugin {
+//             name: self.name,
+//             content: self.content,
+//             active: self.active,
+//         }
+//     }
+// }
