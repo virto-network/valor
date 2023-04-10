@@ -35,7 +35,16 @@ fn print_banner() {
     println!("{banner}");
 }
 
-#[embassy_executor::task(pool_size = 10)]
+#[embassy_executor::task(pool_size = 2)]
+async fn plugin_run_dos(plugin: plugin::Plugin) {
+    let mut count = 0;
+    let rt = Runtime::with_defaults();
+    let content_plugin = plugin.get_plugin();
+    let app = rt.load(content_plugin).unwrap();
+    rt.run(&app).unwrap();
+}
+
+#[embassy_executor::task(pool_size = 2)]
 async fn plugin_run(plugin: plugin::Plugin) {
     // async fn plugin_run(my_num: u32) {
     // for _ in 0..5 {
@@ -44,18 +53,10 @@ async fn plugin_run(plugin: plugin::Plugin) {
     // }
 
     let mut count = 0;
-    loop {
-        if count > 9 {
-            break;
-        } else {
-            count = count + 1;
-        }
-        info!("Loading wasi app from {} count: {count}", plugin.name);
-    }
-    // let rt = Runtime::with_defaults();
-    // let content_plugin = plugin.get_plugin();
-    // let app = rt.load(content_plugin).unwrap();
-    // rt.run(&app).unwrap();
+    let rt = Runtime::with_defaults();
+    let content_plugin = plugin.get_plugin();
+    let app = rt.load(content_plugin).unwrap();
+    rt.run(&app).unwrap();
 }
 
 #[embassy_executor::task]
@@ -97,8 +98,9 @@ async fn run(paths: Vec<String>, all_active: bool) {
         Spawner::for_current_executor().await,
     ];
 
-    sp_vec[0].spawn(plugin_run(vec_plugins[0].clone()));
-    sp_vec[1].spawn(plugin_run(vec_plugins[1].clone()));
+    let _ = sp_vec[0].spawn(plugin_run(vec_plugins[0].clone()));
+    println!("************************************************** Estoy acá!");
+    let _ = sp_vec[1].spawn(plugin_run_dos(vec_plugins[1].clone()));
 
     // let mut counter = 0;
     // for plugin in vec_plugins {
