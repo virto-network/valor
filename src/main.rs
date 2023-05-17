@@ -4,41 +4,18 @@ use clap::Parser;
 use embassy_executor::Spawner;
 use log::{info, warn};
 // use embassy_time::{Duration, Timer};
-// use log::*;
 
 use std::io::stdin;
 use std::process::Command;
 use std::thread;
-// use std::time::Duration;
 use wasm_runtime::{Runtime, Wasm};
 
+mod constants;
 mod parsero;
 mod plugin;
+mod utils;
 
-fn print_banner() {
-    // Clean screen
-    let output = Command::new("clear")
-        .output()
-        .unwrap_or_else(|e| panic!("failed to execute process: {}", e));
-    print!("{}", String::from_utf8_lossy(&output.stdout));
-
-    // Set banner
-    let banner = r#"
-*********************************************************
- __    __)      _____    _____       ______)      ___  
-(, )  /        (, /     (, /   )    (, /        /(,  ) 
-   | /           /        /__ /       /        /    /  
-   |/        ___/__    ) /   \_    ) /        /    /   
-   |       (__ /      (_/         (_/        (___ /    
-                                                       
-*********************************************************
-"#;
-
-    // Print banner
-    println!("{banner}");
-}
-
-#[embassy_executor::task]
+#[embassy_executor::task(pool_size = 5)]
 async fn run(paths: Vec<String>, all_active: bool) {
     // let map_plugins = plugin::Plugin::new_map(&paths, all_active);
     let mut vec_plugins: Vec<plugin::Plugin> = plugin::Plugin::new_vec(paths.clone(), all_active); // Check how to do it well done
@@ -107,7 +84,7 @@ async fn main(spawner: Spawner) {
     // Parse cli inputs (go to parsero)
     let args = parsero::Args::parse();
     if !args.quiet {
-        print_banner();
+        utils::print_banner(constants::BANNER);
     }
 
     if false == args.check_plugin_paths() {

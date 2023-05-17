@@ -1,6 +1,6 @@
 use std::{collections::HashMap, fs};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Plugin {
     pub name: String,
     content: Vec<u8>,
