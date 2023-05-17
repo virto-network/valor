@@ -1,0 +1,25 @@
+[package]
+name = "wasis_test"
+description = "Wasi applications for valor testing"
+license = "GPL-3.0-or-later"
+version = "0.0.1"
+authors = ["Johan Alexis Duque Cadena <johan.duque@gmail.com>"]
+edition = "2021"
+
+[dependencies]
+# wasi = "0.8.0"
+wasmtime-wasi = "8.0.0"
+
+[package.metadata]
+wasm-opt = true
+wasm-name-section = true
+wasm-producers-section = true
+
+[profile.release]
+lto = true
+strip = true
+opt-level = "s"
+
+[profile.dev]
+opt-level = 0
+
