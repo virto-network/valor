@@ -16,8 +16,9 @@ mod utils;
 
 #[embassy_executor::task(pool_size = 5)]
 async fn run(paths: Vec<String>, all_active: bool) {
+    // Optional usage of map_plugins
     // let map_plugins = plugin::Plugin::new_map(&paths, all_active);
-    let mut vec_plugins: Vec<plugin::Plugin> = plugin::Plugin::new_vec(paths.clone(), all_active); // Check how to do it well done
+    let mut vec_plugins: Vec<plugin::Plugin> = plugin::Plugin::new_vec(paths.clone(), all_active);
     let mut _vec_active_plugins: Vec<usize> = Vec::new();
     let mut handles = vec![];
 
@@ -43,7 +44,6 @@ async fn run(paths: Vec<String>, all_active: bool) {
             if key < vec_plugins.len() {
                 vec_plugins[key].active = true;
             } else {
-                // Replace with log message
                 warn!("Wrong value provided: {}!. Skipped plugin.", key);
             }
         }
@@ -51,7 +51,6 @@ async fn run(paths: Vec<String>, all_active: bool) {
 
     for plugin in vec_plugins {
         if plugin.active {
-            // vec_rt.push(Runtime::with_defaults());
             let handle = thread::spawn(move || {
                 info!("Loading wasi app from {}", plugin.name);
                 let rt = Runtime::with_defaults();
@@ -65,11 +64,7 @@ async fn run(paths: Vec<String>, all_active: bool) {
 
     info!("Después de threads");
 
-    // Detectar kill signal
-    // Si detectada kill signal entonces thread.join aquí.
-    // for t in handles {
-    //     t.join();
-    // }
+    // ToDo: Detect sigkills in Unix, and determinate on embedded
     for t in handles {
         info!("Join de threads!");
         t.join().unwrap();
@@ -80,7 +75,7 @@ async fn run(paths: Vec<String>, all_active: bool) {
 
 #[embassy_executor::main]
 async fn main(spawner: Spawner) {
-    // Parse cli inputs (go to parsero)
+    // Parse cli inputs
     let args = parsero::Args::parse();
     if !args.quiet {
         utils::print_banner(constants::BANNER);
