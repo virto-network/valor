@@ -6,12 +6,12 @@ use log::{info, warn};
 // use embassy_time::{Duration, Timer};
 
 use std::io::stdin;
-use std::process::Command;
 use std::thread;
 use wasm_runtime::{Runtime, Wasm};
 
 mod constants;
 mod parsero;
+#[allow(unused_imports)]
 mod plugin;
 mod utils;
 
@@ -19,7 +19,7 @@ mod utils;
 async fn run(paths: Vec<String>, all_active: bool) {
     // let map_plugins = plugin::Plugin::new_map(&paths, all_active);
     let mut vec_plugins: Vec<plugin::Plugin> = plugin::Plugin::new_vec(paths.clone(), all_active); // Check how to do it well done
-    let mut vec_active_plugins: Vec<usize> = Vec::new();
+    let mut _vec_active_plugins: Vec<usize> = Vec::new();
     let mut handles = vec![];
 
     if !all_active {
@@ -30,17 +30,17 @@ async fn run(paths: Vec<String>, all_active: bool) {
         }
         let mut input = String::new();
         stdin().read_line(&mut input).unwrap();
-        vec_active_plugins = input
+        _vec_active_plugins = input
             .trim()
             .split(',')
             .map(|s| s.parse().unwrap())
             .collect();
 
-        vec_active_plugins.sort();
-        vec_active_plugins.dedup();
+        _vec_active_plugins.sort();
+        _vec_active_plugins.dedup();
 
         // Activate plugins
-        for key in vec_active_plugins {
+        for key in _vec_active_plugins {
             if key < vec_plugins.len() {
                 vec_plugins[key].active = true;
             } else {
@@ -99,4 +99,6 @@ async fn main(spawner: Spawner) {
     spawner
         .spawn(run(args.plugin_path, args.all_active))
         .unwrap();
+
+    println!("Finished program!");
 }

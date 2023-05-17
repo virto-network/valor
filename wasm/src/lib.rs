@@ -1,5 +1,3 @@
-#![feature(once_cell)]
-
 #[cfg(feature = "embedded")]
 pub use crate::wasm3::*;
 #[cfg(feature = "native")]

@@ -21,6 +21,8 @@ impl Plugin {
         &self.content
     }
 
+    // ToDo: Try this in an example or something similar
+    #[allow(dead_code)]
     pub fn new_map(paths: Vec<String>, all_active: bool) -> HashMap<String, Self> {
         let mut map_plugins = HashMap::<String, Self>::new();
         for path in paths {
