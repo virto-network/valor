@@ -22,8 +22,10 @@ wasm_runtime = { path = "./wasm" }
 members = [
 	"wasm",
 ]
-[profile.release.package.valor_web]
-opt-level = "s"
+
+# ToDo: Talk about this with @Dani
+# [profile.release.package.valor_web]
+# opt-level = "s"
 
 [profile.release]
 lto = true

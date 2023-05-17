@@ -11,7 +11,6 @@ use wasm_runtime::{Runtime, Wasm};
 
 mod constants;
 mod parsero;
-#[allow(unused_imports)]
 mod plugin;
 mod utils;
 
