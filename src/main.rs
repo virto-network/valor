@@ -2,10 +2,13 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
+use defmt::*;
 use embassy_executor::Spawner;
 use embassy_nrf::gpio::{Level, Output, OutputDrive};
 use embassy_time::{Duration, Timer};
 use {defmt_rtt as _, panic_probe as _};
+
+use wasm_runtime::{Runtime, Wasm};
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
@@ -19,22 +22,6 @@ async fn main(_spawner: Spawner) {
         Timer::after(Duration::from_millis(300)).await;
     }
 }
-
-// #![no_std]
-// #![no_main]
-// #![feature(type_alias_impl_trait)]
-
-// use clap::Parser;
-// use defmt::*;
-// use embassy_executor::Spawner;
-// use embassy_nrf::{bind_interrupts, peripherals, uarte};
-// use log::{info, warn};
-// use {defmt_rtt as _, panic_probe as _};
-// // use embassy_time::{Duration, Timer};
-
-// use std::io::stdin;
-// use std::thread;
-// use wasm_runtime::{Runtime, Wasm};
 
 // mod constants;
 // mod parsero;

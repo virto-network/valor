@@ -12,7 +12,7 @@ web = ["wasmer", "wasmer-wasi"]
 [dependencies]
 anyhow = { version = "1.0.66", default-features = false }
 
-wasm3 = { git = "https://github.com/wasm3/wasm3-rs.git", optional = true }
+wasm3 = { git = "https://github.com/johandroid/wasm3-rs.git", optional = true }
 
 wasmtime = { version = "2.0.0", optional = true }
 wasmtime-wasi = { version = "2.0.0", optional = true }

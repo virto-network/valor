@@ -8,6 +8,7 @@ authors = ["Daniel Olano <daniel@olanod.com>", "Johan Alexis Duque Cadena <johan
 repository = "https://github.com/valibre-org/valor"
 
 [features]
+embedded = []
 default = ["nightly"]
 nightly = ["embassy-executor/nightly", "embassy-nrf/nightly", "embassy-nrf/unstable-traits", "embassy-time/nightly", "embassy-time/unstable-traits",
            "embassy-usb", "embedded-io/async", "embassy-net"]
@@ -42,12 +43,12 @@ serde = { version = "1.0.136", default-features = false }
 # clap = { version = "4.1.8", features = ["derive"] }
 # env_logger = "0.10.0"
 # log = "0.4.17"
-# wasm_runtime = { path = "./wasm" }
+wasm_runtime = { path = "./wasm", features=["embedded"], default-features = false }
 
-# [workspace]
-# members = [
-# 	"wasm",
-# ]
+[workspace]
+members = [
+	"wasm",
+]
 
 # ToDo: Talk about this with @Dani
 # [profile.release.package.valor_web]
