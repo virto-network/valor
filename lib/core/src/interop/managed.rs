@@ -1,22 +1,20 @@
 use crate::{
+    deps::Arc,
     map,
     structures::{Command, CommandOutput, Module, Request, Response, ResponseError},
 };
 
-pub fn handle_command<'a, 's>(
-    command: Command<'s>,
-    module: &'a Module<'s>,
-) -> CommandOutput<'a, 's> {
+pub fn handle_command<'a>(command: Command<'a>, module: Arc<Module>) -> CommandOutput {
     match command {
         Command::ExportModule => CommandOutput::ModuleInfo(module),
         Command::MakeCall(request) => {
-            CommandOutput::CallResult(make_call(&module, request.path, request))
+            CommandOutput::CallResult(make_call(module.clone(), request.path, request))
         }
     }
 }
 
-pub fn make_call<'a, 'b>(
-    module: &'b Module,
+pub fn make_call<'a>(
+    module: Arc<Module>,
     method_name: &'a str,
     request: Request<'a>,
 ) -> Result<Response, ResponseError> {
@@ -39,16 +37,13 @@ mod tests {
 
     #[test]
     fn test_managed_handle_command() {
-        let request = Request {
-            path: "test",
-            meta: Some(map! {}),
-            body: Some(b"Hello world!"),
-        };
+        let request = Request::new("test", Some(map! {}), Some(b"Hello world!"));
 
         let method = Method {
-            name: "test",
+            name: "test".to_owned(),
             call: Some(Box::new(|request: &Request| {
                 Ok(Response {
+                    id: request.id,
                     meta: map! {},
                     body: request.body.unwrap().to_vec(),
                 })
@@ -56,17 +51,20 @@ mod tests {
             extensions: map! {},
         };
 
-        let module = Module {
-            name: "test",
+        let module = Arc::new(Module {
+            name: "test".to_owned(),
             methods: vec![method],
             extensions: map! {},
-        };
+        });
 
         let command = Command::MakeCall(request.clone());
 
-        let result = handle_command(command, &module);
+        let result = handle_command(command, module.clone());
         match result {
-            CommandOutput::CallResult(response) => assert_eq!(request.id, response.id),
+            CommandOutput::CallResult(response) => match response {
+                Ok(res) => assert_eq!(request.id, res.id),
+                Err(err) => panic!("error processing call: {}", err),
+            },
             _ => panic!("Unexpected command output"),
         }
     }

@@ -3,7 +3,7 @@ use super::{
     serialization::{deserialize, serialize},
 };
 use crate::{
-    deps::String,
+    deps::{Arc, String},
     structures::{Command, Module},
 };
 
@@ -14,7 +14,7 @@ fn output_message(input: String) -> (*const u8, usize) {
     (bytes.as_ptr(), bytes_len)
 }
 
-pub fn export_module(module: &Module) -> (*const u8, usize) {
+pub fn export_module<'a>(module: Arc<Module>) -> (*const u8, usize) {
     let serialized = serialize(&*module).expect("Could not serialize module");
     let output = output_message(serialized);
 
@@ -27,8 +27,8 @@ pub fn export_module(module: &Module) -> (*const u8, usize) {
     output
 }
 
-pub fn make_call<'a, 'b>(
-    module: &'b Module,
+pub fn make_call<'a>(
+    module: Arc<Module>,
     method_name: &'a str,
     request_input: &'a str,
 ) -> (*const u8, usize) {
@@ -42,7 +42,7 @@ pub fn make_call<'a, 'b>(
     output_message(output)
 }
 
-pub fn handle_command<'a>(module: &Module<'a>) {
+pub fn handle_command<'a>(module: Arc<Module>) {
     use std::io::Read;
 
     let mut input = String::new();

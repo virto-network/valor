@@ -1,4 +1,4 @@
-use crate::deps::{BTreeMap, Display, String, Vec};
+use crate::deps::{BTreeMap, Display, String, Uuid, Vec};
 
 #[cfg(feature = "serialization")]
 use serde::{Deserialize, Serialize};
@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "debug", derive(Debug))]
 #[cfg_attr(feature = "serialization", derive(Deserialize, Serialize))]
 pub struct Response {
+    pub id: Uuid,
     pub meta: BTreeMap<String, String>,
     pub body: Vec<u8>,
 }
