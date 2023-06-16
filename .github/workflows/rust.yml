@@ -1,10 +1,6 @@
 name: Rust
 
-on:
-  push:
-    branches: [main]
-  pull_request:
-    branches: [main]
+on: [push, pull_request]
 
 env:
   CARGO_TERM_COLOR: always
@@ -12,13 +8,17 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        workspace:
+          ["valor", "valor-core", "valor-proc", "valor-runtime", "valor-run"]
 
     steps:
       - uses: actions/checkout@v2
       - name: Build
-        run: cargo build
+        run: cargo build -p ${{ matrix.workspace }}
       - name: Run tests
-        run: cargo test
+        run: cargo test -p ${{ matrix.workspace }}
   fmt:
     name: Rustfmt
     runs-on: ubuntu-latest
