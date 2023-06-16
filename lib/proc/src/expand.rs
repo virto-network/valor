@@ -5,8 +5,12 @@ use crate::structs::{MethodData, ModuleData, KV};
 impl ToTokens for KV {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         self.0.as_str().to_tokens(tokens);
+        quote!(.to_owned()).to_tokens(tokens);
+
         tokens.append(proc_macro2::Punct::new(',', proc_macro2::Spacing::Alone));
+
         self.1.as_str().to_tokens(tokens);
+        quote!(.to_owned()).to_tokens(tokens);
     }
 }
 
@@ -24,7 +28,7 @@ impl ToTokens for MethodData {
 
         tokens.extend(quote! {
             Method {
-                name: #name,
+                name: #name.to_owned(),
                 call: Some(Box::new(#method_call)),
                 extensions: {
                     let mut hm = BTreeMap::new();
@@ -46,7 +50,7 @@ impl ToTokens for ModuleData {
 
         tokens.extend(quote! {
             Module {
-                name: #name,
+                name: #name.to_owned(),
                 methods: vec![
                   #(
                     #methods,
@@ -86,14 +90,14 @@ mod tests {
 
         let expected_out: TokenStream = quote! {
             Method {
-                name: "custom_method",
+                name: "custom_method".to_owned(),
                 call: Some(Box::new(|request: &Request| -> Result<Response, ResponseError> {
                     example_method(request)
                 })),
                 extensions: {
                   let mut hm = BTreeMap::new();
-                  hm.insert("http_verb", "GET");
-                  hm.insert("http_path", "/");
+                  hm.insert("http_verb".to_owned(), "GET".to_owned());
+                  hm.insert("http_path".to_owned(), "/".to_owned());
                   hm
                 },
             }
@@ -121,17 +125,17 @@ mod tests {
 
         let expected_out: TokenStream = quote! {
             Module {
-                name: "test_module",
+                name: "test_module".to_owned(),
                 methods: vec![
                     Method {
-                        name: "custom_method",
+                        name: "custom_method".to_owned(),
                         call: Some(Box::new(|request: &Request| -> Result<Response, ResponseError> {
                             example_method(request)
                         })),
                         extensions: {
                           let mut hm = BTreeMap::new();
-                          hm.insert("http_verb", "GET");
-                          hm.insert("http_path", "/");
+                          hm.insert("http_verb".to_owned(), "GET".to_owned());
+                          hm.insert("http_path".to_owned(), "/".to_owned());
                           hm
                         },
                     },
@@ -142,9 +146,6 @@ mod tests {
                 },
             }
         };
-
-        println!("{}", &module_out.to_string());
-        println!("{}", &expected_out.to_string());
 
         assert_eq!(module_out.to_string(), expected_out.to_string());
     }

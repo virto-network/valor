@@ -57,29 +57,29 @@ pub fn module(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 #mod_item
 
                 lazy_static! {
-                    static ref MODULE: Module<'static> = #module;
+                    static ref MODULE: Arc<Module> = Arc::new(#module);
                 }
 
-                #[cfg(not(target_arch = "wasm32"))]
-                #[ctor::ctor]
-                fn init() {
-                    valor::registry::add_module(&MODULE);
-                }
+                // #[cfg(not(target_arch = "wasm32"))]
+                // #[ctor::ctor]
+                // fn init() {
+                //     valor::registry::add_module(&MODULE);
+                // }
 
                 #[cfg(target_arch = "wasm32")]
                 #[no_mangle]
                 pub exterrn "C" fn __valor_export_module() -> (*const u8, usize) {
-                    valor::interop::export_module(&*MODULE)
+                    valor::interop::export_module(Arc::clone(&MODULE))
                 }
 
                 #[cfg(target_arch = "wasm32")]
                 #[no_mangle]
                 pub exterrn "C" fn __valor_make_call<'a>(method_name: &str, request: &str) -> (*const u8, usize) {
-                    valor::interop::make_call(&*MODULE, method_name, request)
+                    valor::interop::make_call(Arc::clone(&MODULE), method_name, request)
                 }
 
                 pub fn main () {
-                    valor::interop::handle_command(&*MODULE);
+                    valor::interop::handle_command(Arc::clone(&MODULE));
                 }
             }
             .into()
