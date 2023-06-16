@@ -2213,12 +2213,6 @@ checksum = "345444e32442451b267fc254ae85a209c64be56d2890e601a0c37ff0c3c5ecd2"
 name = "valor"
 version = "0.6.0"
 dependencies = [
- "clap",
- "embassy-executor",
- "embassy-time",
- "embedded-io",
- "env_logger",
- "log",
  "valor-core",
  "valor-proc",
  "valor-runtime",
@@ -2240,6 +2234,19 @@ dependencies = [
  "quote",
  "syn 2.0.16",
  "valor-core",
+]
+
+[[package]]
+name = "valor-run"
+version = "0.6.0"
+dependencies = [
+ "clap",
+ "embassy-executor",
+ "embassy-time",
+ "embedded-io",
+ "env_logger",
+ "log",
+ "valor",
 ]
 
 [[package]]

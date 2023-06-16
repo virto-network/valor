@@ -7,7 +7,7 @@ use log::{info, warn};
 
 use std::io::stdin;
 use std::thread;
-use valor_runtime::{Runtime, Wasm};
+use valor::{Runtime, Wasm};
 
 mod constants;
 mod parsero;

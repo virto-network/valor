@@ -3,6 +3,7 @@
 
 pub use valor_core::{map, module, primitives};
 pub use valor_proc::{extensions, method, module};
+pub use valor_runtime::{Runtime, Wasm};
 
 #[cfg(target_arch = "wasm32")]
 pub use valor_core::interop;
