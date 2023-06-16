@@ -22,7 +22,6 @@ version = "0.6.0"
 [dependencies]
 valor-core = {path = "./lib/core"}
 valor-proc = {path = "./lib/proc"}
-valor-runtime = {path = "./lib/runtime"}
 
 # ToDo: Talk about this with @Dani
 # [profile.release.package.valor_web]

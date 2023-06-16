@@ -2220,7 +2220,6 @@ version = "0.6.0"
 dependencies = [
  "valor-core",
  "valor-proc",
- "valor-runtime",
 ]
 
 [[package]]
