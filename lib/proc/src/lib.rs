@@ -18,7 +18,7 @@ use structs::ModuleData;
 /// # Example
 /// ```ignore
 /// use valor_proc::{module, method, extensions};
-/// use valor_core::primitives::{Request, Response, ResponseError};
+/// use valor_core::structures::{Request, Response, ResponseError};
 ///
 /// #[module("a_module")]
 /// pub mod a_module {
@@ -43,10 +43,10 @@ pub fn module(_attr: TokenStream, item: TokenStream) -> TokenStream {
                 #[cfg(no_std)]
                 extern crate alloc;
                 #[cfg(no_std)]
-                use alloc::collections::BTreeMap;
+                use alloc::{sync::Arc, collections::BTreeMap};
 
                 #[cfg(not(no_std))]
-                use std::collections::BTreeMap;
+                use std::{sync::Arc, collections::BTreeMap};
 
                 use self::#mod_ident::*;
                 use valor::{
@@ -68,17 +68,18 @@ pub fn module(_attr: TokenStream, item: TokenStream) -> TokenStream {
 
                 #[cfg(target_arch = "wasm32")]
                 #[no_mangle]
-                pub exterrn "C" fn __valor_export_module() -> (*const u8, usize) {
+                pub extern "C" fn __valor_export_module() -> (*const u8, usize) {
                     valor::interop::export_module(Arc::clone(&MODULE))
                 }
 
                 #[cfg(target_arch = "wasm32")]
                 #[no_mangle]
-                pub exterrn "C" fn __valor_make_call<'a>(method_name: &str, request: &str) -> (*const u8, usize) {
+                pub extern "C" fn __valor_make_call<'a>(method_name: &str, request: &str) -> (*const u8, usize) {
                     valor::interop::make_call(Arc::clone(&MODULE), method_name, request)
                 }
 
-                pub fn main () {
+                #[cfg(target_arch = "wasm32")]
+                fn main () {
                     valor::interop::handle_command(Arc::clone(&MODULE));
                 }
             }
