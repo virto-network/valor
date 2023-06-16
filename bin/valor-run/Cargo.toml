@@ -1,5 +1,6 @@
 [package]
 description = "CLI tool for running valor modules"
+edition = "2021"
 name = "valor-run"
 version = "0.6.0"
 
