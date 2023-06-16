@@ -1,27 +1,33 @@
-[package]
-name = "valor_core"
-description = "Virto Async Light Open Runtime"
+[workspace]
+members = [
+  "lib/*",
+]
+
+[workspace.package]
+authors = [
+  "Daniel Olano <daniel@olanod.com>",
+  "Johan Alexis Duque Cadena <johan.duque@gmail.com>",
+  "Pablo Dorado <hola@pablodorado.com>",
+]
 license = "GPL-3.0-or-later"
+
+[package]
+description = "Virto Async Light Open Runtime"
+edition = "2021"
+name = "valor"
+repository = "https://github.com/virto-network/valor"
 version = "0.6.0"
-authors = ["Daniel Olano <daniel@olanod.com>", "Johan Alexis Duque Cadena <johan.duque@gmail.com>"]
-edition = "2018"
-repository = "https://github.com/valibre-org/valor"
 
 [dependencies]
-clap = { version = "4.1.8", features = ["derive"] }
-embassy-executor = { version = "0.1.0", git = "https://github.com/embassy-rs/embassy", features = ["log", "std", "nightly", "integrated-timers"] }
-embassy-time = { version = "0.1.0", git = "https://github.com/embassy-rs/embassy", features = ["log", "std", "nightly"] }
-embedded-io = { version = "0.4.0", features = ["async", "std"] }
+clap = {version = "4.1.8", features = ["derive"]}
+embassy-executor = {version = "0.1.0", features = ["log", "std", "nightly", "integrated-timers"]}
+embassy-time = {version = "0.1.0", features = ["log", "std", "nightly"]}
+embedded-io = {version = "0.4.0", features = ["async", "std"]}
 env_logger = "0.10.0"
 log = "0.4.17"
 valor-runtime = {path = "./lib/runtime"}
 
 [features]
-
-[workspace]
-members = [
-	"wasm",
-]
 
 # ToDo: Talk about this with @Dani
 # [profile.release.package.valor_web]
@@ -29,9 +35,8 @@ members = [
 
 [profile.release]
 lto = true
-strip = true
 opt-level = "s"
+strip = true
 
 [profile.dev]
 opt-level = 0
-
