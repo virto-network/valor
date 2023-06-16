@@ -14,7 +14,7 @@ embassy-time = { version = "0.1.0", git = "https://github.com/embassy-rs/embassy
 embedded-io = { version = "0.4.0", features = ["async", "std"] }
 env_logger = "0.10.0"
 log = "0.4.17"
-wasm_runtime = { path = "./wasm" }
+valor-runtime = {path = "./lib/runtime"}
 
 [features]
 
