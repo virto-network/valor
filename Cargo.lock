@@ -2218,6 +2218,7 @@ dependencies = [
 name = "valor"
 version = "0.6.0"
 dependencies = [
+ "lazy_static",
  "valor-core",
  "valor-proc",
 ]

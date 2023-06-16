@@ -23,6 +23,8 @@ version = "0.6.0"
 valor-core = {path = "./lib/core"}
 valor-proc = {path = "./lib/proc"}
 
+lazy_static = "1.4.0"
+
 # ToDo: Talk about this with @Dani
 # [profile.release.package.valor_web]
 # opt-level = "s"
