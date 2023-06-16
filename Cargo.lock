@@ -2219,6 +2219,8 @@ dependencies = [
  "embedded-io",
  "env_logger",
  "log",
+ "valor-core",
+ "valor-proc",
  "valor-runtime",
 ]
 

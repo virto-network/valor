@@ -25,6 +25,9 @@ embassy-time = {version = "0.1.0", features = ["log", "std", "nightly"]}
 embedded-io = {version = "0.4.0", features = ["async", "std"]}
 env_logger = "0.10.0"
 log = "0.4.17"
+
+valor-core = {path = "./lib/core"}
+valor-proc = {path = "./lib/proc"}
 valor-runtime = {path = "./lib/runtime"}
 
 [features]
