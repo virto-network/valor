@@ -9,7 +9,8 @@ serde_json = {version = "1.0.96", optional = true, default-features = false}
 
 [features]
 debug = []
-default = ["std", "serialization"]
+default = ["std", "interop"]
+interop = ["serialization"]
 serde = ["dep:serde", "serde/alloc", "serde/derive"]
 serde_json = ["dep:serde_json", "serde_json/alloc"]
 serialization = ["serde", "serde_json"]
