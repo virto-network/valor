@@ -26,8 +26,7 @@ impl Plugin {
     pub fn new_map(paths: Vec<String>, all_active: bool) -> HashMap<String, Self> {
         let mut map_plugins = HashMap::<String, Self>::new();
         for path in paths {
-            let active = if all_active { true } else { false };
-            let plugin = self::Plugin::new(path.clone(), active);
+            let plugin = self::Plugin::new(path.clone(), all_active);
             map_plugins.insert(path, plugin);
         }
         map_plugins
