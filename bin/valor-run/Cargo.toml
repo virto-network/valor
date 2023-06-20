@@ -1,0 +1,18 @@
+[package]
+description = "CLI tool for running valor modules"
+edition = "2021"
+name = "valor-run"
+version = "0.6.0"
+
+[dependencies]
+valor = {path = "../..", version = "0.6.0"}
+wasm_runtime = {path = "../../wasm", version = "0.1.0"}
+
+clap = {version = "4.1.8", features = ["derive"]}
+embassy-executor = {version = "0.1.0", features = ["log", "std", "nightly", "integrated-timers"]}
+embassy-time = {version = "0.1.0", features = ["log", "std", "nightly"]}
+embedded-io = {version = "0.4.0", features = ["async", "std"]}
+env_logger = "0.10.0"
+log = "0.4.17"
+
+[features]
