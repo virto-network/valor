@@ -1,4 +1,4 @@
-use wasm_runtime::{Runtime, Wasm};
+use valor_runtime::{Runtime, Wasm};
 
 fn main() {
     let rt = Runtime::with_defaults();

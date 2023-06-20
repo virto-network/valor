@@ -79,12 +79,13 @@ mod wasmtime {
                 .inherit_stdio()
                 .inherit_args()?
                 .build();
+
             let mut linker = self.linker.borrow_mut();
             let mut store = Store::new(linker.engine(), cx);
             linker.module(&mut store, "", module)?;
             linker
                 .get_default(&mut store, "")?
-                .typed::<(), (), _>(&store)?
+                .typed::<(), ()>(&store)?
                 .call(&mut store, ())?;
             Ok(())
         }

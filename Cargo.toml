@@ -1,7 +1,7 @@
 [workspace]
 members = [
   "bin/*",
-  "wasm/",
+  "lib/*",
 ]
 
 [workspace.package]
