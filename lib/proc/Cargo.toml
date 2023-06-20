@@ -1,0 +1,19 @@
+[package]
+edition = "2021"
+name = "valor-proc"
+version = "0.1.0"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+proc-macro2 = {version = "1.0.56", default_features = false}
+quote = {version = "1.0.27", default_features = false}
+syn = {version = "2.0.16", default_features = false}
+valor-core = {path = "../core", default_features = false}
+
+[features]
+debug = ["std", "valor-core/debug", "syn/extra-traits"]
+default = ["syn"]
+std = ["valor-core/std"]
+syn = ["syn/full", "syn/clone-impls", "syn/parsing", "syn/printing", "syn/proc-macro"]
