@@ -15,6 +15,7 @@ pub trait Wasm {
     fn with_defaults() -> Self;
     fn load(&self, module: &[u8]) -> Result<Self::Module<'_>>;
     fn run(&self, module: &Self::Module<'_>) -> Result<()>;
+    fn invoke(&self, module: &Self::Module<'_>, stdin: &[u8]) -> Result<Vec<u8>>;
 }
 
 #[cfg(feature = "embedded")]
@@ -43,6 +44,10 @@ mod wasm3 {
             start.call().unwrap();
             Ok(())
         }
+
+        fn invoke(&self, module: &Self::Module<'_>, stdin: &[u8]) -> anyhow::Result<Vec<u8>> {
+            todo!("Implement WASI-stdio invocation for embedded devices here")
+        }
     }
 }
 
@@ -50,6 +55,7 @@ mod wasm3 {
 mod wasmtime {
     use super::{Result, Wasm};
     use std::cell::RefCell;
+    use wasi_common::pipe::{ReadPipe, WritePipe};
     use wasmtime::{self, Engine, Linker, Store};
     use wasmtime_wasi::{add_to_linker, WasiCtx, WasiCtxBuilder};
 
@@ -79,14 +85,48 @@ mod wasmtime {
                 .inherit_stdio()
                 .inherit_args()?
                 .build();
+
             let mut linker = self.linker.borrow_mut();
             let mut store = Store::new(linker.engine(), cx);
             linker.module(&mut store, "", module)?;
             linker
                 .get_default(&mut store, "")?
-                .typed::<(), (), _>(&store)?
+                .typed::<(), ()>(&store)?
                 .call(&mut store, ())?;
             Ok(())
+        }
+
+        fn invoke(&self, module: &Self::Module<'_>, stdin: &[u8]) -> Result<Vec<u8>> {
+            let stdin = ReadPipe::from(stdin);
+            let stdout = WritePipe::new_in_memory();
+            let stderr = WritePipe::new_in_memory();
+
+            let cx = WasiCtxBuilder::new()
+                .stdin(Box::new(stdin.clone()))
+                .stdout(Box::new(stdout.clone()))
+                .stderr(Box::new(stderr.clone()))
+                .inherit_args()?
+                .build();
+
+            let mut linker = self.linker.borrow_mut();
+            let mut store = Store::new(linker.engine(), cx);
+            linker.module(&mut store, "", module)?;
+            linker
+                .get_default(&mut store, "")?
+                .typed::<(), ()>(&store)?
+                .call(&mut store, ())?;
+
+            if let Ok(err) = stderr.try_into_inner() {
+                let err_bytes = err.into_inner();
+                let err_message =
+                    std::string::String::from_utf8(err_bytes).map_err(anyhow::Error::msg)?;
+
+                Err(anyhow::Error::msg(err_message))
+            } else if let Ok(out) = stdout.try_into_inner() {
+                Ok(out.into_inner())
+            } else {
+                Ok(vec![])
+            }
         }
     }
 }
@@ -95,7 +135,7 @@ mod wasmtime {
 mod web {
     use crate::{Result, Wasm};
     use wasmer::{Instance, Module, Store};
-    use wasmer_wasi::WasiState;
+    use wasmer_wasi::{Pipe, WasiState, WasiStateBuilder};
 
     pub struct Runtime(Store);
 
@@ -128,6 +168,31 @@ mod web {
             // let stdout = state.fs.stdout_mut().unwrap().as_mut().unwrap();
             // stdout.read_to_string(&mut out).unwrap();
             Ok(())
+        }
+
+        fn invoke(&self, module: &Self::Module<'_>, stdin: &[u8]) -> Result<Vec<u8>> {
+            let stdin = Pipe::from(stdin);
+
+            let mut env = WasiState::new("service")
+                .stdin(stdin)
+                .finalize()
+                .map_err(anyhow::Error::msg)?;
+            let imports = env.import_object(&module).map_err(anyhow::Error::msg)?;
+
+            let _ = Instance::new(&module, &imports)
+                .map_err(anyhow::Error::msg)?
+                .exports
+                .get_function("_start")
+                .map_err(anyhow::Error::msg)?
+                .call(&[])
+                .map_err(anyhow::Error::msg)?;
+
+            let mut out = vec![];
+            let mut state = env.state();
+            let stdout = state.fs.stdout_mut().unwrap().as_mut().unwrap();
+            stdout.read_to_end(&mut out).unwrap();
+
+            Ok(out)
         }
     }
 }

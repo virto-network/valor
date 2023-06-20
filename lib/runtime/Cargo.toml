@@ -1,0 +1,22 @@
+[package]
+edition = "2021"
+name = "valor-runtime"
+version = "0.1.0"
+
+[features]
+default = ["native"]
+embedded = ["wasm3"]
+native = ["wasmtime", "wasmtime-wasi", "wasi-common"]
+web = ["wasmer", "wasmer-wasi"]
+
+[dependencies]
+anyhow = {version = "1.0.66", default-features = false}
+
+wasm3 = {git = "https://github.com/wasm3/wasm3-rs.git", optional = true}
+
+wasi-common = {version = "9.0.2", optional = true}
+wasmtime = {version = "9.0.2", optional = true}
+wasmtime-wasi = {version = "9.0.2", optional = true}
+
+wasmer = {version = "2.3.0", optional = true, default-features = false, features = ["js", "std"]}
+wasmer-wasi = {version = "2.3.0", optional = true, default-features = false, features = ["js"]}
