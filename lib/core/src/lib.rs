@@ -11,3 +11,6 @@ extern crate std;
 pub(crate) mod deps;
 pub mod structures;
 pub mod util;
+
+#[cfg(feature = "interop")]
+pub mod interop;

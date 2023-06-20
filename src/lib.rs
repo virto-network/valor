@@ -2,7 +2,6 @@
 #![cfg_attr(not(feature = "std"), no_std)]
 
 pub use valor_core::{map, structures};
-pub use valor_proc::{extensions, method, module};
 
 pub use lazy_static::lazy_static;
 
