@@ -2282,6 +2282,7 @@ version = "0.6.0"
 dependencies = [
  "lazy_static",
  "valor-core",
+ "valor-proc",
 ]
 
 [[package]]
@@ -2291,6 +2292,16 @@ dependencies = [
  "serde",
  "serde_json",
  "uuid",
+]
+
+[[package]]
+name = "valor-proc"
+version = "0.1.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.18",
+ "valor-core",
 ]
 
 [[package]]
