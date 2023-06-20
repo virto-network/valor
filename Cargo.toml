@@ -21,6 +21,7 @@ version = "0.6.0"
 
 [dependencies]
 valor-core = {path = "./lib/core"}
+valor-proc = {path = "./lib/proc"}
 
 lazy_static = "1.4.0"
 
