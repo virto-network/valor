@@ -10,8 +10,7 @@ repository = "https://github.com/valibre-org/valor"
 [features]
 embedded = []
 default = ["nightly"]
-nightly = ["embassy-executor/nightly", "embassy-nrf/nightly", "embassy-nrf/unstable-traits", "embassy-time/nightly", "embassy-time/unstable-traits",
-           "embassy-usb", "embedded-io/async", "embassy-net"]
+nightly = ["embassy-executor/nightly", "embassy-nrf/nightly", "embassy-nrf/unstable-traits", "embassy-time/nightly", "embassy-time/unstable-traits", "embassy-usb", "embedded-io/async", "embassy-net"]
 
 [dependencies]
 embassy-futures = { version = "0.1.0", git = "https://github.com/embassy-rs/embassy" }
@@ -39,20 +38,27 @@ rand = { version = "0.8.4", default-features = false }
 embedded-storage = "0.3.0"
 usbd-hid = "0.6.0"
 serde = { version = "1.0.136", default-features = false }
+heapless = "0.7.16"
+
+libwallet = { git="https://github.com/virto-network/libwallet.git", branch="feature/valor_embedded", default-features = false, features= ["substrate","vault_simple","rand", "mnemonic"]  }
+rand_core = "0.6.4"
 
 # clap = { version = "4.1.8", features = ["derive"] }
 # env_logger = "0.10.0"
 # log = "0.4.17"
-wasm_runtime = { path = "./wasm", features=["embedded"], default-features = false }
+# wasm_runtime = { path = "./wasm", features=["embedded"], default-features = false }
 
-[workspace]
-members = [
-	"wasm",
-]
+# [workspace]
+# members = [
+# 	"wasm",
+# ]
 
 # ToDo: Talk about this with @Dani
 # [profile.release.package.valor_web]
 # opt-level = "s"
+
+[patch."https://github.com/virto-network/libwallet.git"]
+libwallet = { path="../libwallet"}
 
 [profile.release]
 lto = true
@@ -62,3 +68,6 @@ opt-level = "s"
 [profile.dev]
 opt-level = 0
 
+[build-dependencies]
+bindgen = "0.66.0"
+cc = "1.0.79"
