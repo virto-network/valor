@@ -40,7 +40,7 @@ usbd-hid = "0.6.0"
 serde = { version = "1.0.136", default-features = false }
 heapless = "0.7.16"
 
-libwallet = { git="https://github.com/virto-network/libwallet.git", branch="feature/valor_embedded", default-features = false, features= ["substrate","vault_simple","rand", "mnemonic"]  }
+libwallet = { git="https://github.com/virto-network/libwallet.git", branch="feature/valor_embedded", default-features = false, features= [ "substrate", "vault_simple", "rand", "mnemonic"] }
 rand_core = "0.6.4"
 
 # clap = { version = "4.1.8", features = ["derive"] }

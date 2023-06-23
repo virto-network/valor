@@ -17,7 +17,7 @@ bind_interrupts!(struct Irqs {
 });
 
 // Libwallet usage
-// use libwallet::{self, vault};
+use libwallet::{self, vault};
 // type Wallet = libwallet::Wallet<vault::Simple>;
 
 #[embassy_executor::main]
