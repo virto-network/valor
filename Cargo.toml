@@ -8,8 +8,8 @@ authors = ["Daniel Olano <daniel@olanod.com>", "Johan Alexis Duque Cadena <johan
 repository = "https://github.com/valibre-org/valor"
 
 [features]
-embedded = []
-default = ["nightly"]
+default = ["nightly", "embedded"]
+embedded = ["embedded-alloc"]
 nightly = ["embassy-executor/nightly", "embassy-nrf/nightly", "embassy-nrf/unstable-traits", "embassy-time/nightly", "embassy-time/unstable-traits", "embassy-usb", "embedded-io/async", "embassy-net"]
 
 [dependencies]
@@ -40,8 +40,9 @@ usbd-hid = "0.6.0"
 serde = { version = "1.0.136", default-features = false }
 heapless = "0.7.16"
 
-libwallet = { git="https://github.com/virto-network/libwallet.git", branch="feature/valor_embedded", default-features = false, features= [ "substrate", "vault_simple", "rand", "mnemonic"] }
+libwallet = { path="../libwallet", default-features = false, features= [ "substrate", "vault_simple", "rand", "mnemonic"] }
 rand_core = "0.6.4"
+embedded-alloc = { version = "0.5.0", default-features = false, optional = true }
 
 # clap = { version = "4.1.8", features = ["derive"] }
 # env_logger = "0.10.0"
@@ -56,9 +57,6 @@ rand_core = "0.6.4"
 # ToDo: Talk about this with @Dani
 # [profile.release.package.valor_web]
 # opt-level = "s"
-
-[patch."https://github.com/virto-network/libwallet.git"]
-libwallet = { path="../libwallet"}
 
 [profile.release]
 lto = true

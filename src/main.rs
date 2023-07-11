@@ -11,6 +11,13 @@ use heapless::String;
 use rand::Rng as _;
 use {defmt_rtt as _, panic_probe as _};
 
+#[cfg(feature = "embedded")]
+use embedded_alloc::Heap;
+
+#[cfg(feature = "embedded")]
+#[global_allocator]
+static HEAP: Heap = Heap::empty();
+
 bind_interrupts!(struct Irqs {
     UARTE0_UART0 => uarte::InterruptHandler<peripherals::UARTE0>;
     RNG => rng::InterruptHandler<peripherals::RNG>;
@@ -18,7 +25,7 @@ bind_interrupts!(struct Irqs {
 
 // Libwallet usage
 use libwallet::{self, vault};
-// type Wallet = libwallet::Wallet<vault::Simple>;
+type Wallet = libwallet::Wallet<vault::Simple>;
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
@@ -63,25 +70,27 @@ async fn main(_spawner: Spawner) {
     unwrap!(uart.write(&palabra.clone().into_bytes()).await);
     palabra.clear();
 
-    // let phrase: &str = "";
+    let phrase: &str = "";
 
-    // let vault = vault::Simple::generate(&mut rng);
+    let vault = vault::Simple::generate(&mut rng);
 
-    // let mut wallet = Wallet::new(vault);
-    // wallet.unlock(None).await;
-    // let account = wallet.default_account();
+    let mut wallet = Wallet::new(vault);
+    wallet.unlock(None).await;
+    let account = wallet.default_account();
 
     // Hago conteo
     // let mut conteo: u8 = 0;
     loop {
         // info!("reading...");
         // unwrap!(uart.read(&mut buf).await);
+
         info!("writing...");
         let _ = palabra.push_str("Conteo: ");
         let random_num = rng.gen_range(0..9);
         info!("random_num: {}", random_num);
         let _ = palabra.push((49u8 + (random_num as u8)) as char);
         let _ = palabra.push_str("\r\n");
+
         // conteo = (conteo + 1) % 9;
         unwrap!(uart.write(&palabra.clone().into_bytes()).await);
         palabra.clear();
