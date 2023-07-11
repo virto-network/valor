@@ -2,6 +2,7 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
+
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_nrf::rng::Rng;
@@ -13,6 +14,10 @@ use {defmt_rtt as _, panic_probe as _};
 
 #[cfg(feature = "embedded")]
 use embedded_alloc::Heap;
+
+#[cfg(feature = "embedded")]
+#[macro_use]
+extern crate alloc;
 
 #[cfg(feature = "embedded")]
 #[global_allocator]
@@ -77,6 +82,7 @@ async fn main(_spawner: Spawner) {
     let mut wallet = Wallet::new(vault);
     wallet.unlock(None).await;
     let account = wallet.default_account();
+    
 
     // Hago conteo
     // let mut conteo: u8 = 0;
@@ -89,7 +95,7 @@ async fn main(_spawner: Spawner) {
         let random_num = rng.gen_range(0..9);
         info!("random_num: {}", random_num);
         let _ = palabra.push((49u8 + (random_num as u8)) as char);
-        let _ = palabra.push_str("\r\n");
+        let _ = palabra.push_str(&format!("\n\r address: {}", account));
 
         // conteo = (conteo + 1) % 9;
         unwrap!(uart.write(&palabra.clone().into_bytes()).await);
