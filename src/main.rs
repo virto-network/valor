@@ -2,7 +2,6 @@
 #![no_main]
 #![feature(type_alias_impl_trait)]
 
-
 use defmt::*;
 use embassy_executor::Spawner;
 use embassy_nrf::rng::Rng;
@@ -51,7 +50,7 @@ async fn main(_spawner: Spawner) {
 
     // Message must be in SRAM
     // let mut buf: [u8; 80] = [0u8; 80];
-    let mut palabra: String<80> = String::new();
+    let mut palabra: String<512> = String::new();
 
     // Limpio pantalla y me pongo al inicio
     let _ = palabra.push(0x1B as char);
@@ -82,20 +81,22 @@ async fn main(_spawner: Spawner) {
     let mut wallet = Wallet::new(vault);
     wallet.unlock(None).await;
     let account = wallet.default_account();
-    
 
     // Hago conteo
-    // let mut conteo: u8 = 0;
     loop {
         // info!("reading...");
         // unwrap!(uart.read(&mut buf).await);
-
         info!("writing...");
         let _ = palabra.push_str("Conteo: ");
         let random_num = rng.gen_range(0..9);
         info!("random_num: {}", random_num);
         let _ = palabra.push((49u8 + (random_num as u8)) as char);
-        let _ = palabra.push_str(&format!("\n\r address: {}", account));
+        // let _ = palabra.push_str(&format!("\n\r address: {}", account));
+        // info!("La cuenta pública: {}", account.public());
+        defmt::info!("La cuenta pública: {:x}", account.public().as_ref());
+        for byte in account.public().as_ref() {
+            unwrap!(uart.write(&[*byte]).await);
+        }
 
         // conteo = (conteo + 1) % 9;
         unwrap!(uart.write(&palabra.clone().into_bytes()).await);
